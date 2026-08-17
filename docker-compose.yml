@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mcp-demo-db
+    environment:
+      POSTGRES_DB: mcpdemo
+      POSTGRES_USER: mcp
+      POSTGRES_PASSWORD: mcp
+      # Rebuild: docker compose down -v && docker compose up -d
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./reference_data:/reference_data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcp -d mcpdemo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:

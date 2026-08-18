@@ -1,0 +1,22 @@
+[project]
+name = "demo-server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Yngve Villanger", email = "yngve.villanger@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.141.1",
+    "fastmcp>=3.4.7",
+    "psycopg[binary]>=3.0",
+    "uvicorn>=0.30",
+]
+
+[project.scripts]
+demo-server = "demo_server:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"

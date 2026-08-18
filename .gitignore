@@ -1,0 +1,54 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Python package files
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.egg
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# uv cache (Python package manager)
+.uv/
+
+# Environment and secrets
+.env.local
+.env.*.local
+
+# Docker volumes (local postgres data)
+postgres-data/
+
+# IDE auto-generated files
+.pylintrc
+.mypy_cache/
+
+# OS-specific
+.AppleDouble
+.LSOverride
+*.log

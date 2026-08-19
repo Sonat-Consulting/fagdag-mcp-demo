@@ -153,6 +153,8 @@ This runs six checks and prints PASS/FAIL for each:
 
 ### Option B — MCP Inspector
 
+#### Paste a token (works with this server now)
+
 1. Get a token to paste into Inspector:
    ```bash
    uv run python test_client.py --print-token
@@ -168,6 +170,44 @@ This runs six checks and prints PASS/FAIL for each:
 4. Click **Connect** and call the `whoami` or `echo` tools.
 
 > Tokens expire after ~1 hour. Re-run `--print-token` to get a fresh one.
+
+#### Let Inspector acquire its own token
+
+Inspector obtains tokens through an interactive OAuth 2.0 Authorization Code
+flow with PKCE. It cannot use this project's `AZURE_CLIENT_SECRET`, because an
+Inspector browser session is a public client and must not contain a secret.
+
+1. In **Expose an API**, add a delegated scope such as `MCP.Access` and enable
+   it for users and administrators.
+2. Create a second app registration named `MCP Inspector`. This is the client
+   application; keep the existing `MCP OAuth Demo` registration as the API.
+3. In the Inspector registration, open **Authentication** and add the Inspector
+   callback URI shown by the OAuth sign-in screen. For a locally hosted
+   Inspector this is typically `http://localhost:6274/oauth/callback`. Add it
+   as a **Single-page application** redirect URI, enable public client flows if
+   Entra requests it, and do not create a client secret.
+4. In **API permissions**, add **My APIs** → `MCP OAuth Demo` → delegated
+   permission `MCP.Access`, then grant admin consent if your tenant requires it.
+5. Configure the MCP server to advertise OAuth protected-resource metadata and
+   Azure's authorization-server metadata. Inspector discovers these endpoints
+   from the server's `401` response, opens the Entra sign-in page, and then
+   sends the resulting Bearer token automatically on reconnect.
+
+Azure endpoints for the configured tenant are:
+
+```
+Issuer:        https://login.microsoftonline.com/<tenant-id>/v2.0
+Authorization: https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize
+Token:         https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+Metadata:      https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
+Scope:         api://<api-client-id>/MCP.Access
+```
+
+> This server currently accepts and validates Bearer tokens, but its custom
+> `AzureADMiddleware` does not yet expose MCP OAuth protected-resource metadata.
+> Therefore Inspector cannot discover the Entra endpoints automatically today;
+> use the paste-a-token flow above until the server is changed to use FastMCP's
+> OAuth support or equivalent discovery endpoints are added.
 
 ### Option C — curl
 

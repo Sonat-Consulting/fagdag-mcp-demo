@@ -13,15 +13,15 @@ Optional environment variables:
 """
 import logging
 import os
+
 import jwt
 import uvicorn
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastmcp import Context, FastMCP
 from jwt import PyJWKClient
 from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
 
 load_dotenv()
 
@@ -43,10 +43,40 @@ jwks_client = PyJWKClient(JWKS_URI, cache_keys=True)
 mcp = FastMCP("SecureMCP")
 
 
-class AzureADMiddleware(BaseHTTPMiddleware):
-    """Reject any MCP request that does not carry a valid Azure AD Bearer token."""
+@mcp.tool
+async def whoami(ctx: Context) -> dict:
+    """Return a confirmation that the caller has been authenticated.
 
-    async def dispatch(self, request: Request, call_next):
+    The server validated the Azure AD Bearer token before this tool ran.
+    """
+    await ctx.info("whoami called by authenticated caller")
+    return {
+        "authenticated": True,
+        "server": "SecureMCP",
+        "auth_provider": "Azure Active Directory",
+        "note": "Bearer token was validated against Azure AD JWKS before this tool ran.",
+    }
+
+
+@mcp.tool
+async def echo(message: str, ctx: Context) -> str:
+    """Echo back the provided message. Demonstrates a protected MCP tool.
+
+    Args:
+        message: The string to echo back.
+    """
+    await ctx.info(f"echo called: {message!r}")
+    return f"[Authenticated echo] {message}"
+
+
+def create_app() -> FastAPI:
+    """Create the FastAPI host application for the FastMCP server."""
+    mcp_app = mcp.http_app(path="/mcp", transport="http")
+    app = FastAPI(lifespan=mcp_app.lifespan)
+
+    @app.middleware("http")
+    async def validate_azure_ad_token(request: Request, call_next):
+        """Reject any MCP request that does not carry a valid Azure AD Bearer token."""
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
             return JSONResponse(
@@ -81,50 +111,13 @@ class AzureADMiddleware(BaseHTTPMiddleware):
 
         log.info(
             "Authenticated: sub=%s appid=%s",
-            claims.get("sub", "—"),
-            claims.get("appid", claims.get("azp", "—")),
+            claims.get("sub", "-"),
+            claims.get("appid", claims.get("azp", "-")),
         )
-
-        # To enforce a specific app role, uncomment and set the required role:
-        # required_role = "MCP.Access"
-        # if required_role not in claims.get("roles", []):
-        #     return JSONResponse({"error": "forbidden", "message": f"Missing role: {required_role}"}, status_code=403)
 
         request.state.token_claims = claims
         return await call_next(request)
 
-
-@mcp.tool
-async def whoami(ctx: Context) -> dict:
-    """Return a confirmation that the caller has been authenticated.
-
-    The server validated the Azure AD Bearer token before this tool ran.
-    """
-    await ctx.info("whoami called by authenticated caller")
-    return {
-        "authenticated": True,
-        "server": "SecureMCP",
-        "auth_provider": "Azure Active Directory",
-        "note": "Bearer token was validated against Azure AD JWKS before this tool ran.",
-    }
-
-
-@mcp.tool
-async def echo(message: str, ctx: Context) -> str:
-    """Echo back the provided message. Demonstrates a protected MCP tool.
-
-    Args:
-        message: The string to echo back.
-    """
-    await ctx.info(f"echo called: {message!r}")
-    return f"[Authenticated echo] {message}"
-
-
-def main() -> None:
-    app = mcp.http_app(path="/mcp", transport="http")
-    # AzureADMiddleware is added first → it sits inside CORS (innermost)
-    app.add_middleware(AzureADMiddleware)
-    # CORSMiddleware is outermost; it handles OPTIONS preflight before auth runs
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -132,6 +125,12 @@ def main() -> None:
         allow_headers=["*"],
         expose_headers=["Mcp-Session-Id"],
     )
+    app.mount("/", mcp_app)
+    return app
+
+
+def main() -> None:
+    app = create_app()
     uvicorn.run(app, host="0.0.0.0", port=8037, log_level="info")
 
 

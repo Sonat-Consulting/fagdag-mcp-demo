@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Consultant Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+  header { padding: 12px 16px; background: #14213d; color: #fff; }
+  h1 { margin: 0 0 8px; font-size: 18px; }
+  form { display: flex; gap: 8px; }
+  input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+  button { padding: 10px 18px; border: 0; border-radius: 6px; background: #fca311; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  #status { padding: 8px 16px; background: #f2f2f2; font-size: 14px; min-height: 34px; }
+  #map { flex: 1; }
+  .examples { margin-top: 6px; font-size: 12px; opacity: .85; }
+  .examples span { cursor: pointer; text-decoration: underline; margin-right: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Consultant Map &mdash; MCP demo</h1>
+  <form id="ask-form">
+    <input id="question" autocomplete="off"
+           placeholder="Show a map of Norway. Draw a dot for each consultant with at least 2 years of Python experience." />
+    <button id="submit" type="submit">Ask</button>
+  </form>
+  <div class="examples">
+    Try:
+    <span class="example">Show a map of Norway. Draw a dot for each consultant that has at least 2 years of Python experience.</span>
+    <span class="example">Which consultants in Bergen know Kubernetes?</span>
+    <span class="example">How many consultants are there per county?</span>
+  </div>
+</header>
+<div id="status">Ask a question to plot consultants.</div>
+<div id="map"></div>
+
+<script>
+const map = L.map('map').setView([64.5, 13.0], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const markers = L.layerGroup().addTo(map);
+const statusEl = document.getElementById('status');
+const questionEl = document.getElementById('question');
+const submitEl = document.getElementById('submit');
+
+document.querySelectorAll('.example').forEach(el => {
+  el.addEventListener('click', () => { questionEl.value = el.textContent.trim(); });
+});
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function render(points) {
+  markers.clearLayers();
+  const coords = [];
+  points.forEach((p, i) => {
+    // Consultants share postal-code coordinates, so spread overlapping dots slightly.
+    const jitter = 0.012;
+    const lat = p.latitude + Math.sin(i * 2.4) * jitter;
+    const lng = p.longitude + Math.cos(i * 2.4) * jitter;
+    coords.push([lat, lng]);
+    const techs = Array.isArray(p.technologies) ? p.technologies.join(', ') : '';
+    L.circleMarker([lat, lng], {
+      radius: 6, color: '#14213d', weight: 1, fillColor: '#fca311', fillOpacity: 0.85
+    }).bindPopup(
+      `<strong>${escapeHtml(p.name)}</strong><br>` +
+      `${escapeHtml(p.poststed)} (${escapeHtml(p.postnummer)}), ${escapeHtml(p.fylke)}<br>` +
+      `${escapeHtml(p.years_experience)} years experience<br>` +
+      `${escapeHtml(techs)}<br>` +
+      `<em>${escapeHtml(p.short_description)}</em>`
+    ).addTo(markers);
+  });
+  if (coords.length) {
+    map.fitBounds(L.latLngBounds(coords).pad(0.15));
+  }
+}
+
+document.getElementById('ask-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const question = questionEl.value.trim();
+  if (!question) return;
+  submitEl.disabled = true;
+  statusEl.textContent = 'Thinking...';
+  try {
+    const response = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    render(data.points || []);
+    statusEl.textContent = `${data.answer || ''} (${(data.points || []).length} consultants plotted)`;
+  } catch (error) {
+    statusEl.textContent = `Error: ${error.message}`;
+  } finally {
+    submitEl.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

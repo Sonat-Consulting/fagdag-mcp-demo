@@ -113,51 +113,7 @@ SELECT
     WHEN 6 THEN CONCAT('Security-focused engineer with ', 4 + (person_idx % 6), ' years in threat modeling, secure coding, and incident response.')
     WHEN 7 THEN CONCAT('QA automation engineer with ', 3 + (person_idx % 7), ' years building test frameworks and release quality gates.')
     ELSE CONCAT('Full-stack engineer with ', 3 + (person_idx % 9), ' years delivering product features from UI to production operations.')
-  END AS short_description,
-  CASE profile_idx
-    WHEN 1 THEN ARRAY['Python', 'FastAPI', 'PostgreSQL', 'Redis', 'Docker']::TEXT[]
-    WHEN 2 THEN ARRAY['TypeScript', 'React', 'Vite', 'CSS', 'Playwright']::TEXT[]
-    WHEN 3 THEN ARRAY['Python', 'dbt', 'Airflow', 'DuckDB', 'Spark']::TEXT[]
-    WHEN 4 THEN ARRAY['Terraform', 'Kubernetes', 'GitHub Actions', 'Prometheus', 'Grafana']::TEXT[]
-    WHEN 5 THEN ARRAY['Flutter', 'Dart', 'Firebase', 'SQLite', 'REST']::TEXT[]
-    WHEN 6 THEN ARRAY['Go', 'OWASP', 'SAST', 'SIEM', 'IAM']::TEXT[]
-    WHEN 7 THEN ARRAY['Python', 'Pytest', 'Selenium', 'Cypress', 'Testcontainers']::TEXT[]
-    ELSE ARRAY['TypeScript', 'Node.js', 'PostgreSQL', 'Docker', 'AWS']::TEXT[]
-  END AS technologies,
-  CASE profile_idx
-    WHEN 1 THEN ARRAY[
-      CONCAT('Designed event-driven billing API for tenant group #', person_idx),
-      CONCAT('Improved service p95 latency by 35% for backend domain #', person_idx)
-    ]::TEXT[]
-    WHEN 2 THEN ARRAY[
-      CONCAT('Built reusable component library adopted by squad #', person_idx),
-      CONCAT('Migrated legacy SPA to React with SSR for portal #', person_idx)
-    ]::TEXT[]
-    WHEN 3 THEN ARRAY[
-      CONCAT('Implemented batch and streaming ETL for data product #', person_idx),
-      CONCAT('Created quality checks reducing bad records by 42% for pipeline #', person_idx)
-    ]::TEXT[]
-    WHEN 4 THEN ARRAY[
-      CONCAT('Automated multi-env deployment platform for service #', person_idx),
-      CONCAT('Set up observability stack and SLO dashboards for cluster #', person_idx)
-    ]::TEXT[]
-    WHEN 5 THEN ARRAY[
-      CONCAT('Delivered cross-platform mobile app feature set for release #', person_idx),
-      CONCAT('Implemented offline sync workflow for field users cohort #', person_idx)
-    ]::TEXT[]
-    WHEN 6 THEN ARRAY[
-      CONCAT('Led security hardening and threat assessments for platform #', person_idx),
-      CONCAT('Implemented secrets rotation and policy checks for environment #', person_idx)
-    ]::TEXT[]
-    WHEN 7 THEN ARRAY[
-      CONCAT('Built test automation suite covering regression pack #', person_idx),
-      CONCAT('Introduced flaky-test quarantine process for pipeline #', person_idx)
-    ]::TEXT[]
-    ELSE ARRAY[
-      CONCAT('Delivered end-to-end feature stream for product line #', person_idx),
-      CONCAT('Implemented cost optimization and autoscaling for workload #', person_idx)
-    ]::TEXT[]
-  END AS project_descriptions
+  END AS short_description
 FROM base;
 
 INSERT INTO address (street_name, street_number, post_number_id)
@@ -170,18 +126,14 @@ INSERT INTO person (
   last_name,
   email_address,
   address_id,
-  short_description,
-  technologies,
-  project_descriptions
+  short_description
 )
 SELECT
   s.first_name,
   s.last_name,
   s.email_address,
   a.id,
-  s.short_description,
-  s.technologies,
-  s.project_descriptions
+  s.short_description
 FROM seed_person AS s
 JOIN address AS a
   ON a.street_name = s.street_name
@@ -229,7 +181,7 @@ SELECT
     g
   ) AS name,
   cai.address_id,
-  CONCAT('NO9', LPAD(g::TEXT, 8, '0')) AS org_number,
+  CONCAT('9', LPAD(g::TEXT, 8, '0')) AS org_number,
   CONCAT('contact', g, '@client.example.com') AS contact_email,
   CASE ((g - 1) % 6) + 1
     WHEN 1 THEN 'Finance'
@@ -243,7 +195,27 @@ SELECT
 FROM generate_series(1, 220) AS g
 JOIN client_address_indexed AS cai ON cai.rn = g;
 
+-- Technology pools and the "primary developer role" per profile_idx (same
+-- 1-8 grouping used for seed_person). Reused below to pick per-assignment
+-- technology subsets and to weight assignment roles toward developer roles.
+CREATE TEMP TABLE profile_pool ON COMMIT DROP AS
+SELECT * FROM (VALUES
+  (1, ARRAY['Python','FastAPI','Django','PostgreSQL','Redis','Docker','gRPC','Celery']::TEXT[], 'Backend Developer', ARRAY['billing platform','payments API','order management system']::TEXT[]),
+  (2, ARRAY['TypeScript','React','Vue','Vite','CSS','GraphQL','Playwright','Next.js']::TEXT[], 'Frontend Developer', ARRAY['customer portal','internal design system','self-service dashboard']::TEXT[]),
+  (3, ARRAY['Python','dbt','Airflow','DuckDB','Spark','Snowflake','Kafka','BigQuery']::TEXT[], 'Data Engineer', ARRAY['data platform','analytics pipeline','reporting warehouse']::TEXT[]),
+  (4, ARRAY['Terraform','Kubernetes','GitHub Actions','Prometheus','Grafana','AWS','Azure','Helm']::TEXT[], 'DevOps Engineer', ARRAY['deployment platform','cloud infrastructure','observability stack']::TEXT[]),
+  (5, ARRAY['Flutter','Dart','Firebase','SQLite','REST','Kotlin','Swift','GraphQL']::TEXT[], 'Mobile Developer', ARRAY['mobile app','field service app','offline-first companion app']::TEXT[]),
+  (6, ARRAY['Go','Rust','OWASP','SAST','SIEM','IAM','Vault','TLS']::TEXT[], 'Security Engineer', ARRAY['identity and access platform','security monitoring system','secrets management service']::TEXT[]),
+  (7, ARRAY['Python','Pytest','Selenium','Cypress','Testcontainers','Playwright','JUnit','Postman']::TEXT[], 'QA Engineer', ARRAY['test automation platform','release quality gate','regression test suite']::TEXT[]),
+  (8, ARRAY['TypeScript','Node.js','PostgreSQL','Docker','AWS','React','GraphQL','Rust']::TEXT[], 'Full-Stack Developer', ARRAY['product platform','self-service application','internal tooling suite']::TEXT[])
+) AS t(profile_idx, tech_pool, developer_role, domain_nouns);
+
+INSERT INTO technology (name)
+SELECT DISTINCT unnest(tech_pool) FROM profile_pool
+ON CONFLICT (name) DO NOTHING;
+
 -- 2% of developers get no assignment, a further 1% get two, the rest exactly one.
+CREATE TEMP TABLE seed_assignment ON COMMIT DROP AS
 WITH developer_ranked AS (
   SELECT id AS developer_id, ROW_NUMBER() OVER (ORDER BY id) AS rn
   FROM person
@@ -265,7 +237,8 @@ developer_counts AS (
 expanded_assignments AS (
   SELECT
     dc.developer_id,
-    gs.n AS assignment_no
+    gs.n AS assignment_no,
+    ((dc.developer_id - 1) % 8) + 1 AS profile_idx
   FROM developer_counts AS dc
   JOIN LATERAL generate_series(1, dc.assignment_count) AS gs(n) ON true
 ),
@@ -275,29 +248,83 @@ client_indexed AS (
 ),
 client_count AS (
   SELECT COUNT(*) AS cnt FROM clients
+),
+-- Assignment 1's dates depend only on developer_id; assignment 2 (the ~1%
+-- with two assignments) always starts strictly after assignment 1 ends, so
+-- the two ranges can never overlap and never trip excl_assignment_no_overlap.
+assignment_dates AS (
+  SELECT
+    ea.developer_id,
+    ea.assignment_no,
+    ea.profile_idx,
+    (DATE '2022-01-01' + ((ea.developer_id * 13) % 500) * INTERVAL '1 day') AS base_start,
+    (DATE '2022-01-01' + ((ea.developer_id * 13) % 500) * INTERVAL '1 day')
+      + (((ea.developer_id * 7) % 1065) + 30) * INTERVAL '1 day' AS base_end,
+    (((ea.developer_id * 3) % 60) + 1) AS gap_days,
+    (((ea.developer_id * 7 + 22) % 1065) + 30) AS second_duration_days
+  FROM expanded_assignments AS ea
 )
+SELECT
+  ad.developer_id,
+  ad.assignment_no,
+  ci.client_id,
+  c.name AS client_name,
+  pp.developer_role,
+  pp.tech_pool[
+    (((ad.developer_id * 5 + ad.assignment_no * 3) % 6) + 1)
+    :
+    (((ad.developer_id * 5 + ad.assignment_no * 3) % 6) + 1 + (1 + ((ad.developer_id + ad.assignment_no) % 2)))
+  ] AS assignment_technologies,
+  pp.domain_nouns[(((ad.developer_id * 3 + ad.assignment_no) % array_length(pp.domain_nouns, 1)) + 1)] AS domain_noun,
+  CASE WHEN ad.assignment_no = 1 THEN ad.base_start ELSE ad.base_end + ad.gap_days * INTERVAL '1 day' END AS start_date,
+  CASE
+    WHEN ad.assignment_no = 1 THEN ad.base_end
+    ELSE ad.base_end + ad.gap_days * INTERVAL '1 day' + ad.second_duration_days * INTERVAL '1 day'
+  END AS end_date,
+  -- ~80% of assignments keep the developer's own specialty role; the rest
+  -- get a leadership role, so the overall mix stays majority-developer.
+  CASE
+    WHEN ((ad.developer_id * 17 + ad.assignment_no * 23) % 100) < 80 THEN pp.developer_role
+    ELSE (ARRAY['Team Lead', 'Scrum Master', 'Product Owner', 'Solution Architect'])
+      [(((ad.developer_id * 19 + ad.assignment_no * 31) % 4) + 1)]
+  END AS role
+FROM assignment_dates AS ad
+CROSS JOIN client_count AS cc
+JOIN client_indexed AS ci
+  ON ci.rn = (((ad.developer_id * 37 + ad.assignment_no * 17) % cc.cnt) + 1)
+JOIN clients AS c ON c.id = ci.client_id
+JOIN profile_pool AS pp ON pp.profile_idx = ad.profile_idx;
+
 INSERT INTO assignments (
   client_id,
   developer_id,
   start_date,
   end_date,
-  assignment_description
+  assignment_description,
+  role
 )
 SELECT
-  ci.client_id,
-  ea.developer_id,
-  DATE '2022-01-01' + ((ea.developer_id * 13 + ea.assignment_no * 29) % 900) * INTERVAL '1 day' AS start_date,
-  (
-    DATE '2022-01-01' + ((ea.developer_id * 13 + ea.assignment_no * 29) % 900) * INTERVAL '1 day'
-  ) + (((ea.developer_id * 7 + ea.assignment_no * 11) % 1065) + 30) * INTERVAL '1 day' AS end_date,
-  CASE
-    WHEN ea.assignment_no = 2 THEN CONCAT('Secondary advisory assignment for developer ', ea.developer_id)
-    ELSE CONCAT('Primary delivery assignment for developer ', ea.developer_id)
-  END AS assignment_description
-FROM expanded_assignments AS ea
-CROSS JOIN client_count AS cc
-JOIN client_indexed AS ci
-  ON ci.rn = (((ea.developer_id * 37 + ea.assignment_no * 17) % cc.cnt) + 1);
+  client_id,
+  developer_id,
+  start_date,
+  end_date,
+  CONCAT(
+    CASE WHEN assignment_no = 2 THEN 'Extend' ELSE 'Develop' END,
+    ' a ', domain_noun, ' for ', client_name,
+    ' using ', array_to_string(assignment_technologies, ', '), '.'
+  ) AS assignment_description,
+  role
+FROM seed_assignment;
+
+-- Single source of truth for the tech subset (seed_assignment, computed once
+-- above); joined back on (developer_id, start_date), unique per developer
+-- since assignment 2's start_date is always after assignment 1's end_date.
+INSERT INTO assignment_technology (assignment_id, technology_id)
+SELECT DISTINCT a.id, tech.id
+FROM assignments AS a
+JOIN seed_assignment AS sa
+  ON sa.developer_id = a.developer_id AND sa.start_date = a.start_date
+JOIN technology AS tech ON tech.name = ANY (sa.assignment_technologies);
 
 CREATE INDEX IF NOT EXISTS idx_address_post_number_id ON address(post_number_id);
 CREATE INDEX IF NOT EXISTS idx_person_name ON person(last_name, first_name);

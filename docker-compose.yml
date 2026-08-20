@@ -5,7 +5,8 @@ services:
     environment:
       POSTGRES_DB: mcpdemo
       POSTGRES_USER: mcp
-      POSTGRES_PASSWORD: mcp
+      # Override via a .env file (POSTGRES_PASSWORD=...) for anything beyond local demo use.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mcp}
       # Rebuild: docker compose down -v && docker compose up -d
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     ports:

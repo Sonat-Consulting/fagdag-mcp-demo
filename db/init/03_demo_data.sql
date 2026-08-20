@@ -252,17 +252,40 @@ client_count AS (
 -- Assignment 1's dates depend only on developer_id; assignment 2 (the ~1%
 -- with two assignments) always starts strictly after assignment 1 ends, so
 -- the two ranges can never overlap and never trip excl_assignment_no_overlap.
-assignment_dates AS (
+-- 97% of assignment-1 rows are "active" (anchored around CURRENT_DATE, so
+-- today falls within [base_start, base_end] and base_end is within a year
+-- out); combined with the 2% of developers with no assignment at all, that
+-- yields ~95% of all consultants showing as currently assigned.
+assignment_flags AS (
   SELECT
     ea.developer_id,
     ea.assignment_no,
     ea.profile_idx,
-    (DATE '2022-01-01' + ((ea.developer_id * 13) % 500) * INTERVAL '1 day') AS base_start,
-    (DATE '2022-01-01' + ((ea.developer_id * 13) % 500) * INTERVAL '1 day')
-      + (((ea.developer_id * 7) % 1065) + 30) * INTERVAL '1 day' AS base_end,
+    ((ea.developer_id * 31) % 100) < 97 AS is_active,
+    (((ea.developer_id * 7) % 600) + 30) AS duration_days,
+    ((ea.developer_id * 17) % 365) AS future_gap_days,
+    (((ea.developer_id * 13) % 400) + 30) AS past_gap_days,
     (((ea.developer_id * 3) % 60) + 1) AS gap_days,
-    (((ea.developer_id * 7 + 22) % 1065) + 30) AS second_duration_days
+    -- capped one day short of the smallest possible 3-year span (Feb-29 edge case)
+    (((ea.developer_id * 7 + 22) % 1064) + 30) AS second_duration_days
   FROM expanded_assignments AS ea
+),
+assignment_dates AS (
+  SELECT
+    af.developer_id,
+    af.assignment_no,
+    af.profile_idx,
+    af.gap_days,
+    af.second_duration_days,
+    CASE
+      WHEN af.is_active THEN CURRENT_DATE - af.duration_days * INTERVAL '1 day'
+      ELSE (CURRENT_DATE - af.past_gap_days * INTERVAL '1 day') - af.duration_days * INTERVAL '1 day'
+    END AS base_start,
+    CASE
+      WHEN af.is_active THEN CURRENT_DATE + af.future_gap_days * INTERVAL '1 day'
+      ELSE CURRENT_DATE - af.past_gap_days * INTERVAL '1 day'
+    END AS base_end
+  FROM assignment_flags AS af
 )
 SELECT
   ad.developer_id,

@@ -23,4 +23,22 @@ JOIN assignment_technology AS at ON at.assignment_id = a.id
 JOIN technology AS t ON t.id = at.technology_id
 GROUP BY p.id, p.first_name, p.last_name, t.name;
 
+-- One row per consultant: their assignment active today (if any), plus
+-- whether they're currently assigned or available. LEFT JOIN stays 1:1
+-- because excl_assignment_no_overlap forbids two active assignments at once.
+CREATE OR REPLACE VIEW consultant_current_assignment AS
+SELECT
+  p.id AS person_id,
+  p.first_name,
+  p.last_name,
+  a.client_id,
+  a.start_date,
+  a.end_date,
+  (a.end_date - CURRENT_DATE) AS remaining_days,
+  (a.id IS NOT NULL) AS is_assigned
+FROM person AS p
+LEFT JOIN assignments AS a
+  ON a.developer_id = p.id
+ AND CURRENT_DATE BETWEEN a.start_date AND a.end_date;
+
 COMMIT;

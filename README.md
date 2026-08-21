@@ -1,5 +1,47 @@
 # fagdag-mcp-demo
 
+## Fagdag: Gi LLM-en tilgang til det den faktisk trenger
+
+Et konsulentselskap har verdifulle ressurser lokalt: fagdata, interne tjenester og kundespesifikk kontekst. Samtidig brukes kraftige språkmodeller i skyen. Hvordan kan modellen bruke de lokale ressursene uten at vi bygger en ny, skreddersydd integrasjon for hvert eneste verktøy?
+
+I denne fagdagen undersøker vi Model Context Protocol (MCP): en åpen protokoll som gir LLM-er en kontrollert og standardisert vei til verktøy, data og arbeidsflyter. Målet er å gå fra en chat som bare svarer, til en kundeorientert assistent som kan hente riktig lokal kontekst og utføre nyttige handlinger.
+
+Vi ser på:
+
+- hva en MCP-server er, og når den er et godt valg
+- en praktisk demonstrasjon og øvelser med FastMCP
+- autentisering og tilgangsstyring med Entra ID
+- hvordan vi kan bygge en kundespesifikk chatklient med lokale ressurser
+
+### Forberedelser
+
+For å kunne delta i øvelsene bør du ha gjort dette på forhånd:
+
+1. Klon repositoriet:
+
+  ```bash
+  git clone https://github.com/Sonat-Consulting/fagdag-mcp-demo.git
+  cd fagdag-mcp-demo
+  ```
+
+2. Installer Docker Desktop (eller Docker Engine med Compose-plugin), Python 3.14+, [uv](https://docs.astral.sh/uv/) og Node.js 18+.
+
+3. Last ned en lokal LLM-modell i GGUF-format, installer `llama.cpp`, og verifiser at `llama-server` kan starte modellen. Se Slack-tråden for installasjonsdetaljer: <https://sonatconsulting.slack.com/archives/C8ZUZMEDC/p1781776347083569>.
+
+  ```bash
+  llama-server -m /full/path/to/model.gguf --port 8080 -c 4096
+  curl http://localhost:8080/health
+  ```
+
+4. Verifiser utviklingsverktøyene:
+
+  ```bash
+  docker compose version
+  python3 --version
+  uv --version
+  node --version
+  ```
+
 This repository includes a PostgreSQL service running in Docker Compose.
 
 ## Prerequisites
@@ -244,7 +286,9 @@ cd demo_server
 uv sync
 ```
 
-2. Start the database first (see [First-Time Setup](#first-time-setup)).
+2. Ensure the postal code CSV exists:
+
+  - `reference_data/Postnummer_med_koordinater_utf8.csv`
 
 3. Start the server:
 
@@ -254,16 +298,7 @@ uv run demo-server
 
 The server starts on `http://localhost:8035/mcp`.
 
-Environment variables (all optional, defaults shown):
-
-| Variable | Default | Description |
-|---|---|---|
-| `PGHOST` | `127.0.0.1` | Postgres host |
-| `PGPORT` | `5432` | Postgres port |
-| `PGDATABASE` | `mcpdemo` | Database name |
-| `PGUSER` | `mcp` | Database user |
-| `PGPASSWORD` | `mcp` | Database password |
-| `DEBUG_SQL` | _(off)_ | Set to `1` to log SQL to stdout |
+This demo server does not require database environment variables.
 
 ## Testing with MCP Inspector
 
@@ -287,31 +322,9 @@ In the inspector UI:
 2. Set **URL** → `http://localhost:8035/mcp`
 3. Click **Connect**
 
-The **Tools** and **Prompts** tabs will populate with everything registered on the server.
+The **Tools**, **Resources**, and **Prompts** tabs will populate with everything registered on the server.
 
 ### Example tool calls
-
-**`is_prime`** — check whether a number is prime:
-
-```json
-{ "n": 7331 }
-```
-
-**`query_postnumbers_sql`** — run a read-only SELECT against the postnumbers table:
-
-```json
-{
-  "sql": "SELECT postnummer, poststed, kommune FROM postnumbers WHERE fylke = 'Vestland' ORDER BY postnummer LIMIT 5",
-  "limit": 5
-}
-```
-
-```json
-{
-  "sql": "SELECT postnummer, poststed FROM postnumbers WHERE poststed ILIKE '%bergen%'",
-  "limit": 20
-}
-```
 
 **`lookup_postal_code_csv`** — look up a postal code from the reference CSV:
 
@@ -319,14 +332,10 @@ The **Tools** and **Prompts** tabs will populate with everything registered on t
 { "code": "5003" }
 ```
 
-**`get_current_temperature`** — fetch live temperature via [Open-Meteo](https://open-meteo.com/) (no API key required):
+**`get_current_temperature`** — fetch live temperature for Bergen, Norway via [Open-Meteo](https://open-meteo.com/) (no API key required):
 
 ```json
-{ "location": "Bergen, Florida" }
-```
-
-```json
-{ "location": "Bergen, Norway" }
+{}
 ```
 
 ### Example prompt
@@ -336,3 +345,10 @@ The **Tools** and **Prompts** tabs will populate with everything registered on t
 ```json
 { "postal_code": 5000 }
 ```
+
+### Example resources
+
+In the **Resources** tab, read these URIs:
+
+- `info://demo-server`
+- `postal-code://5003`

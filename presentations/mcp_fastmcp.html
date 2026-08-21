@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP &amp; FastMCP</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/moon.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --accent:  #e8a838;
+      --accent2: #4fc3f7;
+      --green:   #81c784;
+      --red:     #e57373;
+    }
+    .reveal { font-size: 24px; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      color: var(--accent);
+      text-transform: none;
+      margin-bottom: 0.4em;
+    }
+    .reveal h2 { font-size: 1.5em; }
+    .reveal h3 { font-size: 1.05em; color: var(--accent2); margin-bottom: 0.3em; }
+    .reveal blockquote {
+      background: rgba(255,255,255,0.07);
+      border-left: 4px solid var(--accent);
+      padding: 0.55em 1em;
+      font-style: italic;
+      border-radius: 4px;
+      width: 100%;
+    }
+    .reveal ul li, .reveal ol li { margin-bottom: 0.3em; line-height: 1.55; }
+    .reveal pre {
+      width: 100%;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.55);
+      border-radius: 6px;
+      margin: 0.35em 0;
+    }
+    .reveal pre code {
+      font-size: 0.58em;
+      line-height: 1.42;
+      max-height: 430px;
+      padding: 0.75em 1em;
+    }
+    .reveal pre code.sm-code { font-size: 0.52em; }
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65em;
+      font-size: 0.8em;
+      width: 100%;
+    }
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.65em;
+      font-size: 0.8em;
+      width: 100%;
+    }
+    .card {
+      background: rgba(255,255,255,0.07);
+      border-radius: 6px;
+      padding: 0.6em 0.85em;
+      text-align: left;
+      min-width: 0;
+    }
+    .card h4 { color: var(--accent2); margin: 0 0 0.3em 0; font-size: 1em; }
+    .card p, .card ul { margin: 0; line-height: 1.45; }
+    .card ul { padding-left: 1.1em; }
+    .badge {
+      display: inline-block;
+      padding: 0.15em 0.5em;
+      border-radius: 4px;
+      font-size: 0.78em;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    .badge-tool     { background: rgba(232,168,56,0.18); color: var(--accent);  border: 1px solid var(--accent); }
+    .badge-resource { background: rgba(79,195,247,0.18); color: var(--accent2); border: 1px solid var(--accent2); }
+    .badge-prompt   { background: rgba(129,199,132,0.18); color: var(--green);  border: 1px solid var(--green); }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1em;
+      font-size: 0.88em;
+      text-align: left;
+      width: 100%;
+    }
+    .two-col > * { min-width: 0; }
+    .col-6040 {
+      display: grid;
+      grid-template-columns: 6fr 4fr;
+      gap: 1em;
+      text-align: left;
+      width: 100%;
+    }
+    .col-6040 > * { min-width: 0; }
+    .highlight-box {
+      background: rgba(232,168,56,0.11);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.5em 0.9em;
+      margin: 0.4em 0;
+      font-size: 0.88em;
+      width: 100%;
+    }
+    .info-box {
+      background: rgba(79,195,247,0.1);
+      border: 1px solid var(--accent2);
+      border-radius: 6px;
+      padding: 0.5em 0.9em;
+      margin: 0.4em 0;
+      font-size: 0.88em;
+      width: 100%;
+    }
+    .arch-row { display: flex; gap: 0.65em; justify-content: center; width: 100%; }
+    .arch-box { border-radius: 6px; padding: 0.45em 0.8em; text-align: center; font-size: 0.82em; }
+    .arch-host   { background: rgba(232,168,56,0.14); border: 2px solid var(--accent); }
+    .arch-server { background: rgba(79,195,247,0.11); border: 2px solid var(--accent2); }
+    .arch-llm    { background: rgba(129,199,132,0.12); border: 2px solid var(--green); }
+    .mono {
+      font-family: monospace;
+      font-size: 0.88em;
+      background: rgba(255,255,255,0.1);
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+    }
+    .reveal .slides section { text-align: left; overflow: hidden; padding: 20px 48px; }
+    .reveal .slides section.center-text { text-align: center; }
+    .sm { font-size: 0.82em; color: #aaa; margin: 0.25em 0; }
+    .tag-yes { color: var(--green); font-weight: bold; }
+    .tag-no  { color: var(--red);   font-weight: bold; }
+    .step-num {
+      display: inline-block;
+      width: 1.5em; height: 1.5em;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #111;
+      font-weight: bold;
+      text-align: center;
+      line-height: 1.5em;
+      font-size: 0.8em;
+      margin-right: 0.35em;
+      flex-shrink: 0;
+    }
+    .reveal pre { position: relative; }
+    .copy-btn {
+      position: absolute;
+      top: 0.35em;
+      right: 0.35em;
+      padding: 0.15em 0.55em;
+      font-size: 0.72em;
+      font-family: monospace;
+      background: rgba(255,255,255,0.1);
+      color: #ccc;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 10;
+    }
+    .reveal pre:hover .copy-btn { opacity: 1; }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         1 · TITLE
+         ───────────────────────────────────────────────────────────────────── -->
+    <section class="center-text"
+             data-background-gradient="radial-gradient(ellipse at center, #0d2137 0%, #050e1a 100%)">
+      <h1 style="font-size:2.15em; line-height:1.15;">
+        Model Context<br/>Protocol
+      </h1>
+      <h3 style="color:#ccc; font-weight:300; margin-top:0.45em;">
+        Building context-aware LLM tools with
+        <em style="color:var(--accent)">FastMCP</em>
+      </h3>
+      <br/>
+      <p style="color:#777; font-size:0.78em;">
+        Resources &nbsp;·&nbsp; Tools &nbsp;·&nbsp; Prompts &nbsp;·&nbsp; Local Llama Demo
+      </p>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         2 · AGENDA
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Agenda</h2>
+      <ol style="font-size:0.9em; line-height:1.95em;">
+        <li>The problem — why LLMs need external context</li>
+        <li>What is MCP? The open standard</li>
+        <li>Architecture: Host / Client / Server</li>
+        <li>The three primitives: Tools, Resources, Prompts</li>
+        <li>FastMCP — Python-first MCP framework</li>
+        <li>Tools — with code examples</li>
+        <li>Resources in depth — static, templates, files &amp; blobs</li>
+        <li>Prompts — reusable message templates</li>
+        <li>Wiring up a complete server</li>
+        <li>Live demo with MCP Inspector</li>
+        <li>MCP Server vs. Skill / Agent</li>
+      </ol>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         3 · THE PROBLEM
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>The Problem</h2>
+      <div class="two-col" style="margin-top:0.5em;">
+        <div>
+          <h3>LLMs are isolated</h3>
+          <ul>
+            <li>Trained on a static snapshot of the world</li>
+            <li>No access to your files, database, or APIs</li>
+            <li>Cannot take actions or remember state between calls</li>
+            <li>Context window is the only "memory"</li>
+          </ul>
+          <div class="highlight-box" style="margin-top:0.6em;">
+            Every integration needs custom glue code — no standard protocol.
+          </div>
+        </div>
+        <div>
+          <h3>What we need</h3>
+          <ul>
+            <li>A standard way to give LLMs access to <strong>actions</strong></li>
+            <li>A standard way to read external <strong>data</strong></li>
+            <li>Reusable, versioned <strong>prompt templates</strong></li>
+            <li>Works across models, hosts, and languages</li>
+          </ul>
+          <div class="info-box" style="margin-top:0.6em;">
+            &#x2192; Model Context Protocol
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         4 · WHAT IS MCP
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>What is MCP?</h2>
+      <div class="highlight-box">
+        MCP is an open protocol (Anthropic, Nov 2024) that standardises how LLM
+        hosts connect to context sources and tool providers.
+      </div>
+      <div class="card-grid-3" style="margin-top:0.6em;">
+        <div class="card">
+          <h4>Open standard</h4>
+          <p>JSON-RPC 2.0 over HTTP (Streamable), SSE, or stdio.
+             Language-agnostic. Spec at modelcontextprotocol.io</p>
+        </div>
+        <div class="card">
+          <h4>Composable</h4>
+          <p>One host can connect to many servers simultaneously.
+             Mix tools from files, databases, APIs, and custom code.</p>
+        </div>
+        <div class="card">
+          <h4>Discoverable</h4>
+          <p>Clients query <span class="mono">tools/list</span>,
+             <span class="mono">resources/list</span>, and
+             <span class="mono">prompts/list</span> at runtime — no
+             hard-coded schemas.</p>
+        </div>
+      </div>
+      <blockquote style="margin-top:0.7em; font-size:0.82em;">
+        "Think of MCP like a USB-C port for AI applications — a universal
+        connector between LLM hosts and data / tool providers."
+      </blockquote>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         5 · ARCHITECTURE
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Architecture</h2>
+      <div style="margin-top:0.45em; font-size:0.85em;">
+        <!-- HOST -->
+        <div style="border:2px solid var(--accent); border-radius:8px;
+                    padding:0.6em 1em; background:rgba(232,168,56,0.07);
+                    margin-bottom:0.45em;">
+          <strong style="color:var(--accent);">HOST</strong>
+          <span style="color:#aaa; font-size:0.85em; margin-left:0.5em;">
+            (Claude Desktop, VS Code Copilot, Cursor, your app)
+          </span>
+          <div class="arch-row" style="margin-top:0.4em;">
+            <div class="arch-box arch-llm">&#x1F916; LLM</div>
+            <div style="display:flex; align-items:center; color:#aaa; font-size:1.3em;">&#x21C4;</div>
+            <div class="arch-box arch-host">
+              MCP Client<br/>
+              <span style="font-size:0.82em; color:#bbb;">session &amp; protocol</span>
+            </div>
+          </div>
+        </div>
+        <!-- Arrow -->
+        <div style="text-align:center; margin:0.1em 0; color:#888; font-size:0.95em;">
+          &#x2193; JSON-RPC 2.0 &nbsp;&mdash;&nbsp; HTTP (Streamable) &nbsp;/&nbsp; SSE &nbsp;/&nbsp; stdio
+        </div>
+        <!-- Servers -->
+        <div class="arch-row" style="margin-top:0.25em;">
+          <div class="arch-box arch-server" style="flex:1;">
+            <strong>MCP Server</strong><br/>
+            <span style="font-size:0.82em; color:#aaa;">Files / OS</span>
+          </div>
+          <div class="arch-box arch-server" style="flex:1;">
+            <strong>MCP Server</strong><br/>
+            <span style="font-size:0.82em; color:#aaa;">Database</span>
+          </div>
+          <div class="arch-box arch-server" style="flex:1;">
+            <strong>MCP Server</strong><br/>
+            <span style="font-size:0.82em; color:#aaa;">External APIs</span>
+          </div>
+          <div class="arch-box arch-server" style="flex:1;">
+            <strong>MCP Server</strong><br/>
+            <span style="font-size:0.82em; color:#aaa;">Custom (FastMCP)</span>
+          </div>
+        </div>
+      </div>
+      <p class="sm" style="margin-top:0.5em;">
+        Each server independently exposes Tools, Resources, and Prompts.
+        Multiple servers can run alongside each other.
+      </p>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         6 · THE THREE PRIMITIVES
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>The Three Primitives</h2>
+      <div class="card-grid-3" style="margin-top:0.5em;">
+        <div class="card" style="border-top:3px solid var(--accent);">
+          <h4><span class="badge badge-tool">@mcp.tool</span></h4>
+          <p><strong>Actions</strong> the LLM can invoke.</p>
+          <ul style="margin-top:0.4em; font-size:0.92em;">
+            <li>Model-controlled</li>
+            <li>May have side effects</li>
+            <li>Input validated by JSON Schema</li>
+            <li>Returns structured results</li>
+          </ul>
+          <p class="sm" style="margin-top:0.35em;">
+            Examples: run query, send email, calculate
+          </p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent2);">
+          <h4><span class="badge badge-resource">@mcp.resource</span></h4>
+          <p><strong>Data</strong> the LLM can read.</p>
+          <ul style="margin-top:0.4em; font-size:0.92em;">
+            <li>Application-controlled</li>
+            <li>Identified by URI</li>
+            <li>Text or binary content</li>
+            <li>Static or parameterised (templates)</li>
+          </ul>
+          <p class="sm" style="margin-top:0.35em;">
+            Examples: config, README, user profile
+          </p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green);">
+          <h4><span class="badge badge-prompt">@mcp.prompt</span></h4>
+          <p><strong>Templates</strong> for the conversation.</p>
+          <ul style="margin-top:0.4em; font-size:0.92em;">
+            <li>User-controlled</li>
+            <li>Return message lists</li>
+            <li>Parameterised inputs</li>
+            <li>Bundle prompt engineering</li>
+          </ul>
+          <p class="sm" style="margin-top:0.35em;">
+            Examples: code review, summarise, translate
+          </p>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top:0.7em; text-align:center; font-size:0.9em;">
+        Tools = <em>actions</em>
+        &nbsp;&middot;&nbsp;
+        Resources = <em>context</em>
+        &nbsp;&middot;&nbsp;
+        Prompts = <em>templates</em>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         7 · FASTMCP INTRODUCTION
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>FastMCP</h2>
+      <div class="col-6040">
+        <div>
+          <h3>What is it?</h3>
+          <ul style="font-size:0.88em; line-height:1.6em;">
+            <li>Python library that implements the full MCP spec</li>
+            <li>Decorator-based API — minimal boilerplate</li>
+            <li>Auto-generates JSON Schema from type hints</li>
+            <li>Docstrings become tool / resource descriptions</li>
+            <li>HTTP (Streamable), SSE, and stdio transports</li>
+            <li>Integrates with FastAPI / Starlette / uvicorn</li>
+            <li>Context injection, image support, lifespan hooks</li>
+          </ul>
+          <div class="highlight-box" style="margin-top:0.55em; font-size:0.84em;">
+            <span class="mono">pip install fastmcp</span><br/>
+            <span class="mono">uv add fastmcp</span>
+          </div>
+        </div>
+        <div>
+          <pre><code class="language-python" data-trim>
+from fastmcp import FastMCP
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+mcp = FastMCP("DemoServer")
+
+
+@mcp.tool
+def greet(name: str) -> str:
+    """Return a friendly greeting."""
+    return f"Hello, {name}!"
+
+
+if __name__ == "__main__":
+    app = mcp.http_app(path="/mcp", transport="http")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Mcp-Session-Id"],
+    )
+    uvicorn.run(app, host="127.0.0.1", port=8035)
+          </code></pre>
+          <p class="sm">A complete MCP server in ~20 lines.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         8 · TOOLS
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 1 — Tools</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+from fastmcp import FastMCP
+
+mcp = FastMCP("DemoServer")
+
+
+@mcp.tool
+def calculate(
+    operation: str,
+    a: float,
+    b: float,
+) -> float:
+    """Perform arithmetic on two numbers.
+
+    Args:
+        operation: One of add | subtract | multiply | divide.
+        a: Left operand.
+        b: Right operand.
+    """
+    if operation == "add":      return a + b
+    if operation == "subtract": return a - b
+    if operation == "multiply": return a * b
+    if operation == "divide":
+        if b == 0:
+            raise ValueError("Division by zero")
+        return a / b
+    raise ValueError(f"Unknown operation: {operation!r}")
+
+
+@mcp.tool
+def lookup_postal_code(code: str) -> dict:
+    """Look up a Norwegian postal code.
+
+    Returns the district name and municipality.
+    """
+    import csv, pathlib
+    path = pathlib.Path("reference_data/Postnummer_med_koordinater_utf8.csv")
+    with path.open(encoding="utf-8") as f:
+      for row in csv.DictReader(f, delimiter=","):
+            if row.get("Postnummer") == code:
+                return row
+    raise ValueError(f"Postal code {code!r} not found")
+        </code></pre>
+        <div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Auto-generated schema</h4>
+            <p>FastMCP reads the type hints to build the
+               JSON Schema sent to the model — no manual
+               schema writing needed.</p>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Docstring = description</h4>
+            <p>The docstring is surfaced to the model so it
+               knows <em>when</em> and <em>how</em> to call
+               the tool.</p>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Errors surface safely</h4>
+            <p>Raise <span class="mono">ValueError</span> or
+               <span class="mono">TypeError</span> — FastMCP
+               wraps them in a structured MCP error result
+               the model can reason about.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         9 · RESOURCES: STATIC
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 2 — Resources: Static</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+from fastmcp import FastMCP
+from pathlib import Path
+import time, datetime
+
+mcp = FastMCP("DemoServer")
+
+
+# ── Structured (JSON) resource ─────────────────────
+@mcp.resource("data://config")
+def get_config() -> dict:
+    """Application configuration (read-only)."""
+    return {
+        "app_name": "MCP Demo",
+        "version": "1.0",
+        "supported_ops": ["add","subtract",
+                          "multiply","divide"],
+        "debug": False,
+    }
+
+
+# ── Plain text resource ────────────────────────────
+@mcp.resource("data://readme")
+def get_readme() -> str:
+    """Return the project README as plain text."""
+    return Path("README.md").read_text(encoding="utf-8")
+
+
+# ── Runtime data resource ──────────────────────────
+@mcp.resource("data://server-info")
+def get_server_info() -> dict:
+    """Current server runtime information."""
+    return {
+        "uptime_s": int(time.monotonic()),
+        "now_utc": datetime.datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+    }
+        </code></pre>
+        <div>
+          <div class="info-box" style="font-size:0.82em; margin-bottom:0.48em;">
+            <strong>URI scheme is freeform</strong><br/>
+            Choose something meaningful to your domain:
+            <span class="mono">data://</span>
+            <span class="mono">file://</span>
+            <span class="mono">db://</span>
+            <span class="mono">api://</span>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Return type &#x2192; MIME type</h4>
+            <ul>
+              <li><span class="mono">str</span> &#x2192; text/plain</li>
+              <li><span class="mono">dict / list</span> &#x2192; application/json</li>
+              <li><span class="mono">bytes</span> &#x2192; blob</li>
+            </ul>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Discovery</h4>
+            <p>
+              <span class="mono">resources/list</span> enumerates all
+              static resources.<br/>
+              <span class="mono">resources/read</span> fetches a specific URI.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         10 · RESOURCES: TEMPLATES
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 2 — Resources: Templates</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+import os, psycopg
+from fastmcp import FastMCP
+from pathlib import Path
+
+mcp = FastMCP("DemoServer")
+DB_URL = os.environ["DATABASE_URL"]
+
+
+# ── Single-param URI template ──────────────────────
+@mcp.resource("users://{user_id}/profile")
+def get_user_profile(user_id: str) -> dict:
+    """Fetch a developer profile by ID from PostgreSQL."""
+    with psycopg.connect(DB_URL) as conn:
+        row = conn.execute(
+            "SELECT id, name, email, city "
+            "FROM person WHERE id = %s",
+            (user_id,),
+        ).fetchone()
+    if row is None:
+        raise ValueError(f"User {user_id!r} not found")
+    return {"id": row[0], "name": row[1],
+            "email": row[2], "city": row[3]}
+
+
+# ── Multi-param URI template ───────────────────────
+@mcp.resource("files://{category}/{filename}")
+def read_data_file(category: str, filename: str) -> str:
+    """Read a file from the categorised data store."""
+    base = Path("data").resolve()
+    target = (base / category / filename).resolve()
+    # Prevent path traversal
+    if not target.is_relative_to(base):
+        raise PermissionError("Path traversal denied")
+    return target.read_text(encoding="utf-8")
+        </code></pre>
+        <div>
+          <div class="highlight-box" style="font-size:0.82em; margin-bottom:0.48em;">
+            <strong>URI templates (RFC&nbsp;6570)</strong><br/>
+            Curly-brace placeholders are extracted and
+            passed as function arguments automatically.
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Discovery</h4>
+            <p>Template resources appear in
+               <span class="mono">resources/templates/list</span>,
+               not <span class="mono">resources/list</span>.</p>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Security tip</h4>
+            <p>Always sanitise URI parameters before
+               using them in SQL queries or file paths —
+               treat them like user input.</p>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Fetch example</h4>
+            <p><span class="mono">resources/read</span><br/>
+               URI: <span class="mono">users://42/profile</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         11 · RESOURCES: FILES & BLOBS
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 2 — Resources: Files &amp; Blobs</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+from fastmcp import FastMCP
+from pathlib import Path
+
+mcp = FastMCP("DemoServer")
+
+
+# ── Markdown document ──────────────────────────────
+@mcp.resource(
+    "docs://guidelines",
+    mime_type="text/markdown",
+)
+def get_guidelines() -> str:
+    """Coding guidelines as Markdown."""
+    return Path("docs/GUIDELINES.md").read_text(encoding="utf-8")
+
+
+# ── CSV reference file ─────────────────────────────
+@mcp.resource(
+    "data://postnummer-csv",
+    mime_type="text/csv",
+)
+def get_postnummer_csv() -> str:
+    """Norwegian postal code reference (CSV)."""
+    return Path(
+    "reference_data/Postnummer_med_koordinater_utf8.csv"
+    ).read_text(encoding="utf-8")
+
+
+# ── Binary blob: PNG chart ─────────────────────────
+@mcp.resource(
+    "charts://activity",
+    mime_type="image/png",
+)
+def get_activity_chart() -> bytes:
+    """Daily activity as a PNG chart."""
+    import io
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(5, 3))
+    ax.plot([3, 7, 2, 9, 4, 8, 5])
+    ax.set_title("Daily Activity")
+    ax.set_xlabel("Day")
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(fig)
+    return buf.getvalue()
+        </code></pre>
+        <div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Explicit MIME type</h4>
+            <p>Pass <span class="mono">mime_type=</span> to tell
+               clients how to handle the content. FastMCP
+               sets text/plain or application/json by default.</p>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Binary blobs</h4>
+            <p>Return <span class="mono">bytes</span> with an image
+               or binary MIME type. The MCP transport
+               base64-encodes the payload automatically.</p>
+          </div>
+          <div class="info-box" style="font-size:0.82em;">
+            Vision-capable models can consume image blobs
+            embedded directly in the conversation context.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         12 · PROMPTS
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 3 — Prompts</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+from fastmcp import FastMCP
+
+mcp = FastMCP("DemoServer")
+
+
+# ── Simple string prompt ───────────────────────────
+@mcp.prompt
+def summarise(text: str, max_words: int = 100) -> str:
+    """Summarise text in at most max_words words."""
+    return (
+        f"Summarise the following text in at most "
+        f"{max_words} words:\n\n{text}"
+    )
+
+
+# ── Multi-turn prompt ──────────────────────────────
+@mcp.prompt
+def code_review(
+    code: str,
+    language: str = "python",
+) -> list:
+    """Ask the model to review a code snippet."""
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are an expert code reviewer. "
+                "Be concise and constructive."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Review this {language} code and "
+                f"identify any issues:\n\n"
+                f"```{language}\n{code}\n```"
+            ),
+        },
+    ]
+
+
+# ── Data analysis prompt ───────────────────────────
+@mcp.prompt
+def analyse_data(data: list[float]) -> str:
+    """Ask the model to analyse a list of data points."""
+    points = ", ".join(str(p) for p in data)
+    return (
+        f"Analyse these data points and identify trends, "
+        f"outliers, and a brief summary:\n\n{points}"
+    )
+        </code></pre>
+        <div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>When to use prompts</h4>
+            <p>Bundle prompt engineering expertise into a
+               reusable, versioned template. Users pick a
+               prompt; the host injects it into the
+               conversation.</p>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Return types</h4>
+            <ul>
+              <li><span class="mono">str</span> &#x2192; single user message</li>
+              <li><span class="mono">list[dict]</span> &#x2192; multi-turn thread</li>
+            </ul>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Protocol methods</h4>
+            <p>
+              <span class="mono">prompts/list</span><br/>
+              <span class="mono">prompts/get</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         13 · COMPLETE SERVER
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Wiring It Together</h2>
+      <div class="two-col">
+        <pre><code class="language-python" data-trim>
+# server.py
+from fastmcp import FastMCP
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+import uvicorn
+
+mcp = FastMCP("DemoServer")
+
+
+@mcp.tool
+def add(a: int, b: int) -> int:
+    """Add two integers."""
+    return a + b
+
+
+@mcp.tool
+def greet(name: str) -> str:
+    """Return a greeting for the given name."""
+    return f"Hello, {name}!"
+
+
+@mcp.resource("data://config")
+def get_config() -> dict:
+    """Application configuration."""
+    return {"version": "1.0", "debug": False}
+
+
+@mcp.resource("users://{user_id}/profile")
+def get_user(user_id: str) -> dict:
+    """Stub user profile lookup."""
+    return {"id": user_id, "name": f"User {user_id}"}
+
+
+@mcp.prompt
+def summarise(text: str) -> str:
+    """Summarise text concisely."""
+    return f"Summarise in one paragraph:\n\n{text}"
+
+
+if __name__ == "__main__":
+    app = mcp.http_app(path="/mcp", transport="http")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Mcp-Session-Id"],
+    )
+    uvicorn.run(app, host="127.0.0.1", port=8035)
+        </code></pre>
+        <div>
+          <div class="highlight-box" style="font-size:0.82em; margin-bottom:0.48em;">
+            <strong>Transport options</strong>
+            <ul style="margin-top:0.3em;">
+              <li><span class="mono">transport="http"</span>
+                  &mdash; Streamable HTTP (recommended)</li>
+              <li><span class="mono">transport="sse"</span>
+                  &mdash; HTTP + Server-Sent Events</li>
+              <li><span class="mono">mcp.run()</span>
+                  &mdash; stdio (for CLI / subprocess)</li>
+            </ul>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>CORS middleware</h4>
+            <p>Must be added to the MCP sub-app directly.
+               Middleware on a parent FastAPI app does
+               <span class="tag-no">not</span> propagate.</p>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Run it</h4>
+            <p>
+              <span class="mono">uv run python server.py</span><br/>
+              Listens on
+              <span class="mono">http://127.0.0.1:8035/mcp</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         14 · DEMO: SETUP
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Testing with MCP Inspector</h2>
+      <div class="two-col">
+        <div>
+          <h3>What you need</h3>
+          <ol style="font-size:0.85em; line-height:1.8em;">
+            <li>Node.js 18+ (for <span class="mono">npx</span>)</li>
+            <li>Our FastMCP server running on :8035</li>
+            <li>Reference CSV in <span class="mono">reference_data/</span></li>
+          </ol>
+
+          <div class="highlight-box" style="font-size:0.8em; margin-top:0.6em;">
+            <strong>Start the inspector</strong>
+            <pre style="background:transparent; box-shadow:none; margin:0.3em 0 0; padding:0;"><code class="language-bash sm-code" data-trim>
+npx @modelcontextprotocol/inspector
+            </code></pre>
+          </div>
+
+          <div class="info-box" style="font-size:0.8em; margin-top:0.4em;">
+            Open the URL printed in the terminal
+            (typically <span class="mono">http://localhost:6274</span>)
+            to launch the Inspector UI.
+          </div>
+        </div>
+        <div>
+          <h3>Start the MCP server</h3>
+          <pre><code class="language-bash" data-trim>
+cd demo_server
+uv sync
+uv run demo-server
+# Listening: http://localhost:8035/mcp
+          </code></pre>
+
+          <h3 style="margin-top:0.6em;">Connect in Inspector</h3>
+          <div class="card-grid" style="font-size:0.8em; margin-top:0.3em;">
+            <div class="card">
+              <h4>Transport type</h4>
+              <p><span class="mono">Streamable HTTP</span></p>
+            </div>
+            <div class="card">
+              <h4>URL</h4>
+              <p><span class="mono">http://localhost:8035/mcp</span></p>
+            </div>
+          </div>
+
+          <div class="card" style="font-size:0.8em; margin-top:0.45em;">
+            <h4>After Connect</h4>
+            <p>The <span class="mono">Tools</span>,
+               <span class="mono">Resources</span>, and
+               <span class="mono">Prompts</span> tabs populate
+               automatically from server discovery.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         15 · DEMO: AGENT LOOP
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>MCP Inspector — Try Real Calls</h2>
+      <div class="col-6040">
+        <pre><code class="language-json sm-code" data-trim>
+// Tool: lookup_postal_code_csv
+{ "code": "5003" }
+
+// Tool: get_current_temperature
+{}
+
+// Prompt: apologize_for_non_prime_postal_code
+{ "postal_code": 5000 }
+
+// Resource template read URI
+postal-code://5003
+
+// Static resource URI
+info://demo-server
+        </code></pre>
+        <div>
+          <div class="card" style="font-size:0.8em; margin-bottom:0.4em;">
+            <h4><span class="step-num">1</span> Use the Tools tab</h4>
+            <p>Select a tool, provide JSON arguments,
+               and execute against the live server.</p>
+          </div>
+          <div class="card" style="font-size:0.8em; margin-bottom:0.4em;">
+            <h4><span class="step-num">2</span> Use the Prompts tab</h4>
+            <p>Provide parameters to a prompt and inspect
+               the generated message template.</p>
+          </div>
+          <div class="card" style="font-size:0.8em; margin-bottom:0.4em;">
+            <h4><span class="step-num">3</span> Use the Resources tab</h4>
+            <p>Read static resources and template URIs,
+               including <span class="mono">postal-code://5003</span>.</p>
+          </div>
+          <div class="info-box" style="font-size:0.8em;">
+            Inspector is ideal for validating discovery,
+            argument schemas, error handling, and payloads.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         16 · MCP SERVER vs SKILL / AGENT
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>MCP Server vs. Skill / Agent</h2>
+      <div class="two-col" style="margin-top:0.6em; font-size:0.9em;">
+        <div>
+          <h3>MCP Server</h3>
+          <div class="card" style="margin-bottom:0.4em;">
+            <h4>Role: Capability Provider</h4>
+            <ul>
+              <li><strong>Passive</strong> — waits for JSON-RPC calls</li>
+              <li>Exposes Tools, Resources, and Prompts</li>
+              <li>No reasoning or planning logic</li>
+              <li>Stateless; language-agnostic</li>
+              <li>Answers <em>"what can be done?"</em></li>
+            </ul>
+          </div>
+          <div class="info-box" style="font-size:0.88em;">
+            Examples: FastMCP server, DB connector,<br/>
+            file reader, external API wrapper
+          </div>
+        </div>
+        <div>
+          <h3>Skill / Agent</h3>
+          <div class="card" style="margin-bottom:0.4em;">
+            <h4>Role: Orchestrator</h4>
+            <ul>
+              <li><strong>Active</strong> — drives the reasoning loop</li>
+              <li>Plans, acts, observes, and iterates</li>
+              <li>Decides which tool to call and when</li>
+              <li>Stateful across multiple steps</li>
+              <li>Answers <em>"how do I achieve the goal?"</em></li>
+            </ul>
+          </div>
+          <div class="highlight-box" style="font-size:0.88em;">
+            Examples: VS Code Copilot, Claude Desktop,<br/>
+            custom orchestration loops, LangChain / CrewAI agents
+          </div>
+        </div>
+      </div>
+
+      <!-- Relationship diagram -->
+      <div style="margin-top:0.8em;">
+        <div class="arch-row" style="align-items:center; gap:0.7em;">
+          <div class="arch-box" style="background:rgba(255,255,255,0.07); border:2px solid #666; padding:0.4em 0.85em;">
+            &#x1F464; User goal
+          </div>
+          <div style="color:#888; font-size:1.4em;">&#x2192;</div>
+          <div class="arch-box arch-llm" style="padding:0.4em 0.85em;">
+            &#x1F916; Agent / Skill<br/>
+            <span style="font-size:0.8em; color:#bbb;">plan &#x2192; act &#x2192; observe</span>
+          </div>
+          <div style="color:#888; font-size:1.4em;">&#x21C4;</div>
+          <div style="display:flex; flex-direction:column; gap:0.28em;">
+            <div class="arch-box arch-server" style="padding:0.28em 0.7em; font-size:0.88em;">MCP Server &mdash; DB</div>
+            <div class="arch-box arch-server" style="padding:0.28em 0.7em; font-size:0.88em;">MCP Server &mdash; Files</div>
+            <div class="arch-box arch-server" style="padding:0.28em 0.7em; font-size:0.88em;">MCP Server &mdash; APIs</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         16b · MCP SERVER vs SKILL / AGENT — comparison & fit
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>MCP Server vs. Skill / Agent</h2>
+      <h3 style="margin-top:0.1em; color:#aaa; font-weight:400; font-size:0.85em;">Key differences &amp; how they work together</h3>
+
+      <!-- Key comparison table -->
+      <div class="card-grid" style="margin-top:0.7em; font-size:0.88em;">
+        <div class="card">
+          <h4>Key differences at a glance</h4>
+          <table style="width:100%; border-collapse:collapse; line-height:1.8em;">
+            <thead>
+              <tr style="color:var(--accent); border-bottom:1px solid rgba(255,255,255,0.15);">
+                <th style="text-align:left; padding:0 0.4em 0.2em 0;">Dimension</th>
+                <th style="text-align:left; padding:0 0.4em 0.2em 0; color:var(--accent2);">MCP Server</th>
+                <th style="text-align:left; padding:0 0 0.2em 0; color:var(--green);">Skill / Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:0.1em 0.4em 0.1em 0;">Who controls?</td><td style="color:var(--accent2);">App / host</td><td style="color:var(--green);">LLM reasoning</td></tr>
+              <tr><td style="padding:0.1em 0.4em 0.1em 0;">Protocol</td><td style="color:var(--accent2);">JSON-RPC / MCP</td><td style="color:var(--green);">Framework / custom</td></tr>
+              <tr><td style="padding:0.1em 0.4em 0.1em 0;">State</td><td style="color:var(--accent2);">Stateless</td><td style="color:var(--green);">Stateful across steps</td></tr>
+              <tr><td style="padding:0.1em 0.4em 0.1em 0;">Scope</td><td style="color:var(--accent2);">Single capability</td><td style="color:var(--green);">Multi-step goal</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h4>How they fit together</h4>
+          <p style="line-height:1.7em;">
+            An <strong style="color:var(--green);">Agent</strong> uses
+            <strong style="color:var(--accent2);">MCP Servers</strong>
+            as its tool providers. The server exposes
+            <em>what</em> is possible; the agent decides
+            <em>how</em> and <em>when</em> to use those
+            capabilities to reach a goal.
+          </p>
+          <div style="margin-top:0.6em; font-size:0.95em; font-style:italic; color:#aaa;">
+            &ldquo;MCP Server = the USB peripheral.<br/>
+            &nbsp;Agent / Skill = the computer driving it.&rdquo;
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         17 · CURRENT ADOPTION STATUS — THE SHIFT TO "SKILLS"
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Current Adoption Status</h2>
+      <h3 style="margin-top:0.1em; color:#aaa; font-weight:400; font-size:0.85em;">The Shift to &ldquo;Skills&rdquo;</h3>
+
+      <div class="two-col" style="margin-top:0.7em; font-size:0.9em;">
+        <div>
+          <div class="card" style="border-top:3px solid var(--accent2);">
+            <h4 style="color:var(--accent2);">MCP Servers — Here to Stay</h4>
+            <ul>
+              <li><strong>Enterprise growth:</strong> Millions of monthly downloads; backed by major firms via the Linux Foundation</li>
+              <li><strong>Technical focus:</strong> Engineers drive most usage for backend, DevOps, and database tooling</li>
+              <li>Moving from early hype to <em>practical, production use</em></li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="border-top:3px solid var(--green);">
+            <h4 style="color:var(--green);">The Rise of Agent Skills</h4>
+            <ul>
+              <li><strong>Context bloat:</strong> Always-on servers consume too many tokens describing endless tools</li>
+              <li><strong>Lighter alternatives:</strong> Developers increasingly use lightweight file-based &ldquo;skills&rdquo; or CLI tools instead of heavy local MCP setups</li>
+              <li><strong>Coexistence:</strong> Most teams now layer both — skills to teach agents <em>how to think</em>, MCP for secure, standardised actions</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:0.8em; font-size:0.88em;">
+        Skills + MCP Servers are complementary, not competing. Skills define <em>reasoning patterns</em>; MCP Servers provide <em>trusted capabilities</em>.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         18 · SUMMARY
+         ───────────────────────────────────────────────────────────────────── -->
+    <section class="center-text"
+             data-background-gradient="radial-gradient(ellipse at center, #0d2137 0%, #050e1a 100%)">
+      <h2>Summary</h2>
+      <div class="card-grid-3" style="margin-top:0.6em; text-align:left;">
+        <div class="card" style="border-top:3px solid var(--accent);">
+          <h4>MCP</h4>
+          <p>Open protocol for LLM &#x21C4; context.
+             JSON-RPC 2.0 over HTTP / SSE / stdio.
+             Discoverable at runtime.</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent2);">
+          <h4>FastMCP</h4>
+          <p>Python decorator API.
+             Type hints &#x2192; schemas.
+             Docstrings &#x2192; descriptions.
+             Minimal boilerplate.</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--green);">
+          <h4>Resources</h4>
+          <p>Static URIs, URI templates, file reads,
+             CSV, Markdown, binary blobs —
+             all with one decorator.</p>
+        </div>
+      </div>
+      <div class="highlight-box" style="margin-top:0.8em; font-size:0.88em;">
+        <span class="badge badge-tool">Tools</span> actions
+        &nbsp;&nbsp;
+        <span class="badge badge-resource">Resources</span> context
+        &nbsp;&nbsp;
+        <span class="badge badge-prompt">Prompts</span> templates
+        &nbsp;&nbsp;
+         <span style="font-family:monospace; font-size:0.85em;
+               background:rgba(255,255,255,0.08); padding:0.15em 0.4em;
+           border-radius:4px;">MCP Inspector</span> practical testing
+      </div>
+      <div style="margin-top:0.9em; font-size:0.82em;">
+        <a href="https://modelcontextprotocol.io"
+           style="color:var(--accent2);">modelcontextprotocol.io</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/jlowin/fastmcp"
+           style="color:var(--accent2);">github.com/jlowin/fastmcp</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://github.com/ggerganov/llama.cpp"
+           style="color:var(--accent2);">github.com/ggerganov/llama.cpp</a>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: "slide",
+    transitionSpeed: "default",
+    controlsTutorial: false,
+    slideNumber: "c/t",
+    plugins: [ RevealHighlight ],
+  });
+
+  document.querySelectorAll('.reveal pre').forEach(pre => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code');
+      navigator.clipboard.writeText(code ? code.innerText : pre.innerText).then(() => {
+        btn.textContent = '✓ copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+    pre.appendChild(btn);
+  });
+</script>
+</body>
+</html>

@@ -21,6 +21,12 @@ YEARS_EXPR = r"COALESCE(NULLIF(substring(p.short_description from '([0-9]+)\s+ye
 mcp = FastMCP("ConsultantMap")
 
 
+async def execute_query(cursor, query: str, params: list | None = None) -> None:
+    """Send a query to PostgreSQL and print it to standard output."""
+    print(f"SQL query:\n{query.strip()}\nSQL parameters: {params}", flush=True)
+    await cursor.execute(query, params)
+
+
 @mcp.tool
 async def find_consultants(
     technology: Annotated[
@@ -47,16 +53,17 @@ async def find_consultants(
     params: list = []
 
     if technology is not None:
-        conditions.append(
+        experience_condition = (
             "EXISTS ("
-            "  SELECT 1 FROM assignments a2"
-            "  JOIN assignment_technology at2 ON at2.assignment_id = a2.id"
-            "  JOIN technology t2 ON t2.id = at2.technology_id"
-            "  WHERE a2.developer_id = p.id AND UPPER(t2.name) LIKE %s"
-            ")"
+            "  SELECT 1 FROM consultant_technology_experience cte"
+            "  WHERE cte.person_id = p.id AND UPPER(cte.technology) LIKE %s"
         )
         params.append(f"%{technology.upper()}%")
-    if min_years_experience is not None:
+        if min_years_experience is not None:
+            experience_condition += " AND cte.years_experience >= %s"
+            params.append(min_years_experience)
+        conditions.append(experience_condition + ")")
+    elif min_years_experience is not None:
         conditions.append(f"{YEARS_EXPR} >= %s")
         params.append(min_years_experience)
     if fylke is not None:
@@ -104,7 +111,148 @@ async def find_consultants(
 
     async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            await cur.execute(query, params)
+            await execute_query(cur, query, params)
+            return await cur.fetchall()
+
+
+@mcp.tool
+async def list_technology_experience(
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
+    technology: Annotated[str | None, Field(description="Technology name (partial match)")] = None,
+    limit: Annotated[int, Field(description="Maximum rows to return", ge=1, le=1000)] = 500,
+    ctx: Context = None,
+) -> list[dict]:
+    """List assignment-derived years of experience for each consultant and technology."""
+    conditions: list[str] = []
+    params: list = []
+
+    if consultant_id is not None:
+        conditions.append("person_id = %s")
+        params.append(consultant_id)
+    if technology is not None:
+        conditions.append("UPPER(technology) LIKE %s")
+        params.append(f"%{technology.upper()}%")
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"""
+        SELECT person_id, first_name, last_name, technology, years_experience
+        FROM consultant_technology_experience
+        {where_clause}
+        ORDER BY years_experience DESC, last_name, first_name, technology
+        LIMIT %s
+    """  # noqa: S608
+    params.append(limit)
+
+    if ctx:
+        await ctx.info(f"list_technology_experience params: {params}")
+
+    async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await execute_query(cur, query, params)
+            return await cur.fetchall()
+
+
+@mcp.tool
+async def list_current_assignments(
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
+    is_assigned: Annotated[bool | None, Field(description="Filter by current assignment status")] = None,
+    limit: Annotated[int, Field(description="Maximum consultants to return", ge=1, le=1000)] = 500,
+    ctx: Context = None,
+) -> list[dict]:
+    """List consultants with their current assignment, availability, and remaining days."""
+    conditions: list[str] = []
+    params: list = []
+
+    if consultant_id is not None:
+        conditions.append("person_id = %s")
+        params.append(consultant_id)
+    if is_assigned is not None:
+        conditions.append("is_assigned = %s")
+        params.append(is_assigned)
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"""
+        SELECT person_id, first_name, last_name, client_id, start_date, end_date,
+               remaining_days, is_assigned
+        FROM consultant_current_assignment
+        {where_clause}
+        ORDER BY is_assigned, end_date NULLS FIRST, last_name, first_name
+        LIMIT %s
+    """  # noqa: S608
+    params.append(limit)
+
+    if ctx:
+        await ctx.info(f"list_current_assignments params: {params}")
+
+    async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await execute_query(cur, query, params)
+            return await cur.fetchall()
+
+
+@mcp.tool
+async def list_consultant_assignments(
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
+    client: Annotated[str | None, Field(description="Client name (partial match)")] = None,
+    assignment_status: Annotated[
+        str | None,
+        Field(description="Assignment timing: 'current', 'past', or 'future'"),
+    ] = None,
+    limit: Annotated[int, Field(description="Maximum assignments to return", ge=1, le=1000)] = 500,
+    ctx: Context = None,
+) -> list[dict]:
+    """List consultant assignment history with client and project details."""
+    conditions: list[str] = []
+    params: list = []
+
+    if consultant_id is not None:
+        conditions.append("p.id = %s")
+        params.append(consultant_id)
+    if client is not None:
+        conditions.append("UPPER(c.name) LIKE %s")
+        params.append(f"%{client.upper()}%")
+    if assignment_status is not None:
+        status_conditions = {
+            "current": "CURRENT_DATE BETWEEN a.start_date AND a.end_date",
+            "past": "a.end_date < CURRENT_DATE",
+            "future": "a.start_date > CURRENT_DATE",
+        }
+        try:
+            conditions.append(status_conditions[assignment_status.lower()])
+        except KeyError as error:
+            raise ValueError("assignment_status must be 'current', 'past', or 'future'") from error
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    query = f"""
+        SELECT a.id AS assignment_id,
+               p.id AS consultant_id,
+               p.first_name || ' ' || p.last_name AS consultant_name,
+               c.id AS client_id,
+               c.name AS client_name,
+               c.industry AS client_industry,
+               a.role,
+               a.start_date,
+               a.end_date,
+               a.assignment_description,
+               array_agg(t.name ORDER BY t.name) AS technologies
+        FROM assignments a
+        JOIN person p ON p.id = a.developer_id
+        JOIN clients c ON c.id = a.client_id
+        LEFT JOIN assignment_technology at ON at.assignment_id = a.id
+        LEFT JOIN technology t ON t.id = at.technology_id
+        {where_clause}
+        GROUP BY a.id, p.id, c.id
+        ORDER BY a.start_date DESC, a.id
+        LIMIT %s
+    """  # noqa: S608
+    params.append(limit)
+
+    if ctx:
+        await ctx.info(f"list_consultant_assignments params: {params}")
+
+    async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
+        async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            await execute_query(cur, query, params)
             return await cur.fetchall()
 
 
@@ -124,7 +272,7 @@ async def list_technologies(ctx: Context = None) -> list[dict]:
 
     async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            await cur.execute(query)
+            await execute_query(cur, query)
             return await cur.fetchall()
 
 
@@ -136,9 +284,10 @@ async def consultant_stats(ctx: Context = None) -> dict:
 
     async with await psycopg.AsyncConnection.connect(DB_URL) as conn:
         async with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            await cur.execute("SELECT COUNT(*) AS total FROM person")
+            await execute_query(cur, "SELECT COUNT(*) AS total FROM person")
             total = (await cur.fetchone())["total"]
-            await cur.execute(
+            await execute_query(
+                cur,
                 """
                 SELECT pn.fylke, COUNT(*) AS consultant_count
                 FROM person p
@@ -159,7 +308,9 @@ async def server_info() -> str:
     return (
         "ConsultantMap MCP server. Tools: find_consultants (filter by technology, "
         "min_years_experience, fylke, kommune, poststed), list_technologies, "
-        "consultant_stats. Data source: PostgreSQL 'mcpdemo' database."
+        "list_consultant_assignments, list_technology_experience, "
+        "list_current_assignments, consultant_stats. Data source: PostgreSQL "
+        "'mcpdemo' database."
     )
 
 

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Exercises</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/moon.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --accent: #e8a838;
+      --accent2: #4fc3f7;
+      --green: #81c784;
+      --red: #e57373;
+    }
+    .reveal { font-size: 24px; }
+    .reveal h1, .reveal h2, .reveal h3 {
+      color: var(--accent);
+      text-transform: none;
+      margin-bottom: 0.4em;
+    }
+    .reveal h2 { font-size: 1.5em; }
+    .reveal h3 { font-size: 1.05em; color: var(--accent2); margin-bottom: 0.3em; }
+    .reveal ul li, .reveal ol li { margin-bottom: 0.3em; line-height: 1.5; }
+    .reveal pre {
+      width: 100%;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+      border-radius: 6px;
+      margin: 0.35em 0;
+    }
+    .reveal pre code { font-size: 0.58em; line-height: 1.42; max-height: 430px; padding: 0.75em 1em; }
+    .reveal .slides section { text-align: left; overflow: hidden; padding: 20px 48px; }
+    .reveal .slides section.center-text { text-align: center; }
+    .two-col, .card-grid, .card-grid-3 {
+      display: grid;
+      gap: 0.7em;
+      width: 100%;
+      text-align: left;
+    }
+    .two-col { grid-template-columns: 1fr 1fr; font-size: 0.88em; }
+    .card-grid { grid-template-columns: 1fr 1fr; font-size: 0.82em; }
+    .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; font-size: 0.8em; }
+    .two-col > *, .card-grid > *, .card-grid-3 > * { min-width: 0; }
+    .card {
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      padding: 0.6em 0.85em;
+      min-width: 0;
+    }
+    .card h4 { color: var(--accent2); margin: 0 0 0.32em; font-size: 1em; }
+    .card p, .card ul { margin: 0; line-height: 1.45; }
+    .card ul { padding-left: 1.1em; }
+    .highlight-box, .info-box {
+      border-radius: 6px;
+      padding: 0.5em 0.9em;
+      margin: 0.45em 0;
+      font-size: 0.88em;
+      width: 100%;
+    }
+    .highlight-box { background: rgba(232, 168, 56, 0.11); border: 1px solid var(--accent); }
+    .info-box { background: rgba(79, 195, 247, 0.1); border: 1px solid var(--accent2); }
+    .mono {
+      font-family: monospace;
+      font-size: 0.88em;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+    }
+    .step-num {
+      display: inline-block;
+      width: 1.5em;
+      height: 1.5em;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #111;
+      font-weight: bold;
+      text-align: center;
+      line-height: 1.5em;
+      font-size: 0.8em;
+      margin-right: 0.35em;
+    }
+    .task-label { color: var(--green); font-family: monospace; font-size: 0.72em; letter-spacing: 0.08em; }
+    .muted { color: #aaa; }
+    .check { color: var(--green); font-weight: bold; }
+    .arch-row { display: flex; align-items: center; justify-content: center; gap: 0.65em; width: 100%; }
+    .arch-box { border-radius: 6px; padding: 0.48em 0.8em; text-align: center; font-size: 0.82em; }
+    .arch-client { background: rgba(129, 199, 132, 0.12); border: 2px solid var(--green); }
+    .arch-server { background: rgba(79, 195, 247, 0.11); border: 2px solid var(--accent2); }
+    .arch-data { background: rgba(232, 168, 56, 0.14); border: 2px solid var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <section class="center-text" data-background-gradient="radial-gradient(ellipse at center, #0d2137 0%, #050e1a 100%)">
+        <h1 style="font-size:2.15em; line-height:1.15;">MCP Exercises</h1>
+        <h3 style="color:#ccc; font-weight:300; margin-top:0.45em;">From a useful database tool to a protected, map-driven service</h3>
+        <br />
+        <p style="color:#777; font-size:0.78em;">Postal codes &nbsp;&middot;&nbsp; OAuth &nbsp;&middot;&nbsp; Consultant maps</p>
+      </section>
+
+      <section>
+        <h2>Today's Route</h2>
+        <div class="card-grid-3" style="margin-top:0.7em;">
+          <div class="card">
+            <h4>1. Postal codes</h4>
+            <p>Expose a focused database query as an MCP tool.</p>
+          </div>
+          <div class="card">
+            <h4>2. OAuth</h4>
+            <p>Make an MCP endpoint reject requests without a valid access token.</p>
+          </div>
+          <div class="card">
+            <h4>3. Consultant maps</h4>
+            <p>Turn tool results with coordinates into an interactive map.</p>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top:0.75em;">
+          <strong>Choose your language and framework.</strong> The exercises specify behaviours and MCP contracts, not an implementation language. The solution folders are reference implementations, not a required starting point.
+        </div>
+      </section>
+
+      <section>
+        <h2>Shared Setup</h2>
+        <div class="two-col">
+          <div>
+            <h3>Start the demo database</h3>
+            <pre><code class="language-bash" data-trim>
+docker compose up -d
+docker compose ps
+            </code></pre>
+            <div class="card" style="margin-top:0.55em;">
+              <h4>PostgreSQL connection</h4>
+              <p><span class="mono">postgresql://mcp:mcp@localhost:5432/mcpdemo</span></p>
+              <p class="muted" style="margin-top:0.35em;">Database: <span class="mono">mcpdemo</span> on port <span class="mono">5432</span></p>
+              <p class="muted">Username: <span class="mono">mcp</span> &nbsp; Password: <span class="mono">mcp</span></p>
+            </div>
+          </div>
+          <div>
+            <h3>Bring an MCP client</h3>
+            <ul>
+              <li>Use MCP Inspector to discover and invoke tools.</li>
+              <li>Use an LLM client for natural-language tool calls.</li>
+              <li>For the map task, create a browser or desktop client.</li>
+            </ul>
+            <div class="info-box" style="margin-top:0.65em;">
+              Your server needs an MCP endpoint. Streamable HTTP at <span class="mono">/mcp</span> is a practical default, but the protocol is not tied to one language or transport.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Exercise Workflow</h2>
+        <div class="arch-row" style="margin-top:1em;">
+          <div class="arch-box arch-client">MCP client<br /><span class="muted">Inspector, agent, or UI</span></div>
+          <div style="color:#888; font-size:1.5em;">&harr;</div>
+          <div class="arch-box arch-server">Your MCP server<br /><span class="muted">tools with clear schemas</span></div>
+          <div style="color:#888; font-size:1.5em;">&harr;</div>
+          <div class="arch-box arch-data">Data or identity provider<br /><span class="muted">PostgreSQL or Entra ID</span></div>
+        </div>
+        <div class="two-col" style="margin-top:1em;">
+          <div class="card">
+            <h4>Build in thin slices</h4>
+            <ol>
+              <li>Make one capability work locally.</li>
+              <li>Describe its input and output clearly.</li>
+              <li>Validate it with Inspector or a small client.</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h4>Ask useful questions</h4>
+            <ul>
+              <li>What should the model be allowed to request?</li>
+              <li>What is a useful, stable tool response?</li>
+              <li>What failure should be explicit rather than guessed?</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 01</p>
+        <h2>Postal Codes: A Useful First Tool</h2>
+        <div class="two-col">
+          <div>
+            <h3>Objective</h3>
+            <p>Build an MCP server that lets a client retrieve Norwegian postal-code data from the <span class="mono">postnumbers</span> table or the supplied CSV file.</p>
+            <div class="highlight-box" style="margin-top:0.65em;">
+              A natural-language client should be able to answer: <em>“List postal codes and districts in Tysnes kommune.”</em>
+            </div>
+          </div>
+          <div>
+            <h3>Minimum contract</h3>
+            <ul>
+              <li>Expose at least one discoverable MCP tool.</li>
+              <li>Accept a postal code, district, municipality, or similar filters.</li>
+              <li>Return matching code, district, municipality, county, and coordinates where available.</li>
+              <li>Reject a request with no filter instead of scanning the whole table by accident.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="info-box" style="margin-top:0.7em;">
+          <strong>Choose a data source:</strong> query PostgreSQL, or read <span class="mono">reference_data/Postnummer_med_koordinater_utf8.csv</span> directly. Both routes should expose the same useful MCP tool contract.
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 01</p>
+        <h2>Postal Codes: Tutor Hints</h2>
+        <div class="card-grid-3">
+          <div class="card">
+            <h4><span class="step-num">1</span> Start small</h4>
+            <p>First make a single exact postal-code lookup work. Only then introduce optional filters.</p>
+          </div>
+          <div class="card">
+            <h4><span class="step-num">2</span> Let types teach</h4>
+            <p>A numeric postal-code filter and text filters need different validation and query parameters.</p>
+          </div>
+          <div class="card">
+            <h4><span class="step-num">3</span> Parameterise</h4>
+            <p>For PostgreSQL, build SQL conditions and bound parameters separately. Never interpolate a user-supplied value into SQL.</p>
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:0.7em;">
+          <div>
+            <h3>Inspect your chosen source first</h3>
+            <pre><code class="language-sql" data-trim>
+SELECT postnummer, poststed, kommune, fylke,
+       latitude, longitude
+FROM postnumbers
+WHERE UPPER(kommune) LIKE '%TYSNES%';
+            </code></pre>
+            <p class="muted" style="font-size:0.8em; margin-top:0.45em;">CSV route: read the UTF-8 file once, identify its headers and delimiter, then normalise text before filtering.</p>
+          </div>
+          <div>
+            <h3>Definition of done</h3>
+            <ul>
+              <li><span class="check">&#10003;</span> Tool appears in MCP Inspector.</li>
+              <li><span class="check">&#10003;</span> A municipality search returns sensible rows.</li>
+              <li><span class="check">&#10003;</span> Empty filters produce a clear error.</li>
+              <li><span class="check">&#10003;</span> An LLM client can use the tool for Tysnes.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 02</p>
+        <h2>OAuth: Protect an MCP Service</h2>
+        <div class="two-col">
+          <div>
+            <h3>Objective</h3>
+            <p>Protect an HTTP MCP endpoint so only callers with a valid Azure AD / Microsoft Entra ID Bearer token can use its tools.</p>
+            <div class="info-box" style="margin-top:0.65em;">
+              Your MCP server is a <strong>resource server</strong>. It validates tokens; it does not mint them.
+            </div>
+          </div>
+          <div>
+            <h3>Minimum contract</h3>
+            <ul>
+              <li>A missing token returns <span class="mono">401 Unauthorized</span>.</li>
+              <li>An invalid or expired token returns <span class="mono">401 Unauthorized</span>.</li>
+              <li>A valid token reaches protected MCP tools.</li>
+              <li>Provide one small tool, such as <span class="mono">whoami</span> or <span class="mono">echo</span>, to prove the boundary works.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 02</p>
+        <h2>OAuth: Token Journey</h2>
+        <div class="arch-row" style="margin-top:0.85em;">
+          <div class="arch-box arch-client">Client<br /><span class="muted">requests a token</span></div>
+          <div style="color:#888; font-size:1.5em;">&rarr;</div>
+          <div class="arch-box arch-data">Entra ID<br /><span class="muted">issues signed JWT</span></div>
+          <div style="color:#888; font-size:1.5em;">&rarr;</div>
+          <div class="arch-box arch-server">MCP endpoint<br /><span class="muted">validates before tools run</span></div>
+        </div>
+        <div class="card-grid" style="margin-top:0.9em;">
+          <div class="card">
+            <h4>What to validate</h4>
+            <ul>
+              <li>Bearer token is present.</li>
+              <li>Signature matches Entra's public JWKS key.</li>
+              <li>Audience is your API identifier.</li>
+              <li>Issuer is your tenant and expiration is valid.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h4>Configuration to keep outside code</h4>
+            <ul>
+              <li>Tenant ID</li>
+              <li>Client / application ID</li>
+              <li>Audience (often <span class="mono">api://&lt;client-id&gt;</span>)</li>
+              <li>Client secret, if a test client uses client credentials</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 02</p>
+        <h2>OAuth: Training App Registration</h2>
+        <div class="two-col">
+          <div>
+            <h3>Use the shared training application</h3>
+            <p>The Entra ID application is already registered. Configure your server and test client with these values:</p>
+            <pre><code class="language-bash" data-trim>
+AZURE_TENANT_ID=f33e7c1b-175d-47a2-9f1b-17bc3736c5bf
+AZURE_CLIENT_ID=cf4aa078-4dae-4a02-99ed-9c4abf8dec92
+AZURE_AUDIENCE=api://cf4aa078-4dae-4a02-99ed-9c4abf8dec92
+            </code></pre>
+          </div>
+          <div>
+            <h3>Training client secret</h3>
+            <pre><code class="language-bash" data-trim>
+AZURE_CLIENT_SECRET=e_N8Q~WRa~cSpkI7Iy60k.b~FTM5wRonDMnFnb05
+            </code></pre>
+            <div class="highlight-box" style="margin-top:0.6em;">
+              This secret is for this local training exercise only. Never embed a production secret in source code, a browser client, or a committed configuration file.
+            </div>
+            <p class="muted" style="font-size:0.8em;">The client-credentials flow uses the secret to request an access token. The server only needs the tenant ID, client ID, and audience to validate it.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 02</p>
+        <h2>OAuth: Tutor Hints</h2>
+        <div class="two-col">
+          <div>
+            <h3>Work outside-in</h3>
+            <ol>
+              <li>Start with the shared training app registration and its API audience.</li>
+              <li>Make the unauthenticated endpoint consistently return 401.</li>
+              <li>Obtain a real access token using a suitable OAuth flow.</li>
+              <li>Validate it before dispatching MCP requests.</li>
+            </ol>
+            <div class="highlight-box">
+              A JWT may look well formed but still be wrong for your API. Signature alone is not enough: check audience, issuer, and expiry.
+            </div>
+          </div>
+          <div>
+            <h3>Definition of done</h3>
+            <ul>
+              <li><span class="check">&#10003;</span> No <span class="mono">Authorization</span> header gives 401.</li>
+              <li><span class="check">&#10003;</span> A fake token gives 401.</li>
+              <li><span class="check">&#10003;</span> A valid token can initialise MCP.</li>
+              <li><span class="check">&#10003;</span> A protected tool returns a successful response.</li>
+            </ul>
+            <div class="info-box" style="margin-top:0.65em;">
+              Do not put client secrets in the repository or a browser application. Use a local environment file excluded from Git or a secret manager.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 03</p>
+        <h2>Consultant Maps: From Tools to Decisions</h2>
+        <div class="two-col">
+          <div>
+            <h3>Objective</h3>
+            <p>Create an MCP service and client that help a sales team find consultants and visualise their locations on a map of Norway.</p>
+            <div class="highlight-box" style="margin-top:0.65em;">
+              Example request: <em>“Show consultants in Bergen with at least two years of Python experience.”</em>
+            </div>
+          </div>
+          <div>
+            <h3>Minimum contract</h3>
+            <ul>
+              <li>Return consultant identity, skills, postal area, latitude, and longitude.</li>
+              <li>Support filters such as technology, experience, county, municipality, or postal district.</li>
+              <li>Plot every returned consultant as a map point.</li>
+              <li>Make the user-facing question and resulting map feel connected.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 03</p>
+        <h2>Consultant Maps: Shape the Data</h2>
+        <div class="arch-row" style="margin-top:0.5em;">
+          <div class="arch-box arch-data">person<br />address<br />postnumbers</div>
+          <div style="color:#888; font-size:1.5em;">&rarr;</div>
+          <div class="arch-box arch-server">find_consultants<br /><span class="muted">structured rows</span></div>
+          <div style="color:#888; font-size:1.5em;">&rarr;</div>
+          <div class="arch-box arch-client">map UI<br /><span class="muted">one point per row</span></div>
+        </div>
+        <div class="two-col" style="margin-top:0.85em;">
+          <div>
+            <h3>Server questions</h3>
+            <ul>
+              <li>Which tables provide a consultant's postal area?</li>
+              <li>Where do skills and assignment experience live?</li>
+              <li>Which rows lack coordinates, and how should you handle them?</li>
+              <li>Which filter combinations are safe and useful?</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Client questions</h3>
+            <ul>
+              <li>Can the map explain each marker with a tooltip or popup?</li>
+              <li>How does the view react to zero results?</li>
+              <li>Will overlapping markers remain understandable?</li>
+              <li>Can a direct client call work before adding an LLM loop?</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="task-label">TASK 03</p>
+        <h2>Consultant Maps: Tutor Hints</h2>
+        <div class="card-grid-3">
+          <div class="card">
+            <h4><span class="step-num">1</span> Prove the join</h4>
+            <p>Write and inspect a database query that returns a few named consultants with non-null coordinates before introducing MCP.</p>
+          </div>
+          <div class="card">
+            <h4><span class="step-num">2</span> Keep tool data plain</h4>
+            <p>Return JSON-friendly rows. A map client should not need to decode presentation-oriented text to find coordinates.</p>
+          </div>
+          <div class="card">
+            <h4><span class="step-num">3</span> Add the LLM last</h4>
+            <p>First call the tool directly from the client. Then let an LLM choose arguments from a natural-language request.</p>
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:0.7em;">
+          <div class="info-box">
+            Useful additional tools: list technologies, consultant counts by county, current assignment status, or assignment history. They give a model better context for forming a search.
+          </div>
+          <div>
+            <h3>Definition of done</h3>
+            <ul>
+              <li><span class="check">&#10003;</span> Map displays returned consultant locations.</li>
+              <li><span class="check">&#10003;</span> A technology filter changes the plotted set.</li>
+              <li><span class="check">&#10003;</span> Empty results and missing coordinates are handled cleanly.</li>
+              <li><span class="check">&#10003;</span> A natural-language request produces a relevant map.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Stretch Goals</h2>
+        <div class="card-grid-3">
+          <div class="card">
+            <h4>Postal codes</h4>
+            <p>Add a resource that describes the data source, or a tool that finds the nearest postal area from coordinates.</p>
+          </div>
+          <div class="card">
+            <h4>OAuth</h4>
+            <p>Enforce an application role or advertise OAuth protected-resource metadata for clients that support discovery.</p>
+          </div>
+          <div class="card">
+            <h4>Consultant maps</h4>
+            <p>Find consultants near a client by calculating geographic distance, then expose the result as a tool.</p>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top:0.85em;">
+          Keep the principle from every task: expose a narrow, well-described capability; validate it independently; then compose it into a richer experience.
+        </div>
+      </section>
+
+      <section class="center-text" data-background-gradient="radial-gradient(ellipse at center, #0d2137 0%, #050e1a 100%)">
+        <h1 style="font-size:1.9em;">Build the smallest useful slice</h1>
+        <h3 style="color:#ccc; font-weight:300; margin-top:0.6em;">Then let clear MCP contracts carry it from database to agent to interface.</h3>
+        <br />
+        <p style="color:var(--accent); font-size:0.9em;">Start with Task 1: Postal Codes</p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      transition: 'slide',
+      plugins: [RevealHighlight]
+    });
+  </script>
+</body>
+</html>

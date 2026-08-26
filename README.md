@@ -97,25 +97,31 @@ If your setup exposes OpenAI-compatible routes, you can usually use:
 ### `llama-server: command not found`
 
 Cause:
+
 - `llama.cpp` is not installed or not on your PATH.
 
 Fix:
+
 - Install `llama.cpp` and ensure `llama-server` is available in your shell.
 
 ### Model file cannot be opened
 
 Cause:
+
 - Wrong path or filename for `Qwen3.6-27B-Q4_K_M.gguf`.
 
 Fix:
+
 - Use the absolute path in `-m` and verify file permissions.
 
 ### Port 8080 already in use
 
 Cause:
+
 - Another process is using port `8080`.
 
 Fix:
+
 - Stop the conflicting process or run with another port, for example `--port 8081`.
 
 ## Project Structure (relevant for Docker)
@@ -303,6 +309,21 @@ This demo server does not require database environment variables.
 ## Testing with MCP Inspector
 
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is a browser-based tool for interacting with any running MCP server.
+
+### Start the built-in FastMCP inspector
+
+FastMCP includes a development command that starts the demo server together with MCP Inspector. This is the simplest way to inspect the server locally because you do not need to start `demo-server` in a separate terminal.
+
+From the repository root, run:
+
+```bash
+cd demo_server
+uv run fastmcp dev inspector src/demo_server/server.py
+```
+
+The command starts the server and the Inspector proxy, then prints a URL for the Inspector UI in the terminal. Open that URL in a browser. In the Inspector, you can connect to the displayed server, then use the **Tools**, **Resources**, and **Prompts** tabs to explore and invoke the registered MCP features.
+
+Stop the command with `Ctrl+C` when you are finished.
 
 ### Start the inspector
 

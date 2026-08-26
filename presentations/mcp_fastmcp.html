@@ -388,50 +388,47 @@
          ───────────────────────────────────────────────────────────────────── -->
     <section>
       <h2>FastMCP</h2>
-      <div class="col-6040">
+      <div class="col-6040" style="grid-template-columns:4.5fr 5.5fr; align-items:start;">
         <div>
           <h3>What is it?</h3>
-          <ul style="font-size:0.88em; line-height:1.6em;">
-            <li>Python library that implements the full MCP spec</li>
-            <li>Decorator-based API — minimal boilerplate</li>
-            <li>Auto-generates JSON Schema from type hints</li>
-            <li>Docstrings become tool / resource descriptions</li>
-            <li>HTTP (Streamable), SSE, and stdio transports</li>
-            <li>Integrates with FastAPI / Starlette / uvicorn</li>
-            <li>Context injection, image support, lifespan hooks</li>
+          <ul style="font-size:0.85em; line-height:1.5em;">
+            <li>Full MCP spec in one Python library</li>
+            <li>Decorator API — minimal boilerplate</li>
+            <li>Auto JSON Schema from type hints</li>
+            <li>Docstrings become descriptions</li>
+            <li>stdio (default), HTTP (Streamable), SSE</li>
+            <li>Built-in <span class="mono">fastmcp dev</span> inspector</li>
           </ul>
-          <div class="highlight-box" style="margin-top:0.55em; font-size:0.84em;">
-            <span class="mono">pip install fastmcp</span><br/>
-            <span class="mono">uv add fastmcp</span>
+          <div class="info-box" style="font-size:0.82em; margin-top:0.5em;">
+            The inspector runs the server over stdio <em>and</em> its own proxy
+            — no second terminal. Open the printed URL
+            (<span class="mono">localhost:6274</span>).
           </div>
         </div>
         <div>
-          <pre><code class="language-python" data-trim>
+          <pre><code class="language-python" data-trim style="font-size:0.88em; line-height:1.5;">
 from fastmcp import FastMCP
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
-mcp = FastMCP("DemoServer")
-
+mcp = FastMCP("test_server")
 
 @mcp.tool
 def greet(name: str) -> str:
-    """Return a friendly greeting."""
+    """Greet someone by name."""
     return f"Hello, {name}!"
 
-
 if __name__ == "__main__":
-    app = mcp.http_app(path="/mcp", transport="http")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["Mcp-Session-Id"],
-    )
-    uvicorn.run(app, host="127.0.0.1", port=8035)
+    mcp.run()  # stdio by default
           </code></pre>
-          <p class="sm">A complete MCP server in ~20 lines.</p>
+          <div class="highlight-box" style="margin-top:0.3em; padding:0.45em 0.6em;">
+            <pre style="background:transparent; box-shadow:none; margin:0; padding:0;"><code class="language-bash" data-trim style="font-size:0.86em; line-height:1.55; padding:0.2em 0.3em;">
+# install uv — astral.sh/uv
+brew install uv              # macOS
+winget install astral-sh.uv  # Windows
+uv init test_server && cd test_server
+uv add fastmcp
+uv run fastmcp dev inspector server.py
+            </code></pre>
+          </div>
         </div>
       </div>
     </section>

@@ -44,6 +44,30 @@ For å kunne delta i øvelsene bør du ha gjort dette på forhånd:
 
 This repository includes a PostgreSQL service running in Docker Compose.
 
+## Presentations
+
+The slide decks live in `presentations/` as self-contained reveal.js pages. Serve them locally
+with the stdlib-only helper (no dependencies, no `uv sync` needed):
+
+```bash
+python3 presentations/serve.py
+```
+
+Then open <http://127.0.0.1:8888/> for an index of all decks:
+
+- `mcp_fastmcp.html` — MCP & FastMCP
+- `mcp_exercises.html` — MCP Exercises
+
+Useful flags:
+
+```bash
+python3 presentations/serve.py --port 9000   # if 8888 is taken
+python3 presentations/serve.py --host 0.0.0.0 # let others in the room open the deck
+python3 presentations/serve.py --open         # open the index in your browser
+```
+
+Any new `.html` file dropped into `presentations/` shows up on the index automatically.
+
 ## Prerequisites
 
 - Docker Desktop (or Docker Engine + Compose plugin)

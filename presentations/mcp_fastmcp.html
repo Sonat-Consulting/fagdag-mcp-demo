@@ -426,13 +426,22 @@
         </div>
         <div>
           <pre><code class="language-python" data-trim style="font-size:0.88em; line-height:1.5;">
+from typing import Annotated
 from fastmcp import FastMCP
+from pydantic import Field
 
 mcp = FastMCP("test_server")
 
 @mcp.tool
-def greet(name: str) -> str:
-    """Greet someone by name."""
+def greet_person(name: Annotated[str, Field(
+    min_length=1,
+    description="Person's name, e.g. 'Ada Lovelace'.",
+)]) -> str:
+    """Return a short greeting for a person.
+
+    Use for a direct greeting, not for email or notification delivery.
+    Returns the greeting text and does not contact external services.
+    """
     return f"Hello, {name}!"
 
 if __name__ == "__main__":
@@ -447,79 +456,6 @@ uv init test_server && cd test_server
 uv add fastmcp
 uv run fastmcp dev inspector server.py
             </code></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─────────────────────────────────────────────────────────────────────
-         8 · TOOLS
-         ───────────────────────────────────────────────────────────────────── -->
-    <section>
-      <h2>Primitive 1 — Tools</h2>
-      <div class="col-6040">
-        <pre><code class="language-python" data-trim>
-from fastmcp import FastMCP
-
-mcp = FastMCP("DemoServer")
-
-
-@mcp.tool
-def calculate(
-    operation: str,
-    a: float,
-    b: float,
-) -> float:
-    """Perform arithmetic on two numbers.
-
-    Args:
-        operation: One of add | subtract | multiply | divide.
-        a: Left operand.
-        b: Right operand.
-    """
-    if operation == "add":      return a + b
-    if operation == "subtract": return a - b
-    if operation == "multiply": return a * b
-    if operation == "divide":
-        if b == 0:
-            raise ValueError("Division by zero")
-        return a / b
-    raise ValueError(f"Unknown operation: {operation!r}")
-
-
-@mcp.tool
-def lookup_postal_code(code: str) -> dict:
-    """Look up a Norwegian postal code.
-
-    Returns the district name and municipality.
-    """
-    import csv, pathlib
-    path = pathlib.Path("reference_data/Postnummer_med_koordinater_utf8.csv")
-    with path.open(encoding="utf-8") as f:
-      for row in csv.DictReader(f, delimiter=","):
-            if row.get("Postnummer") == code:
-                return row
-    raise ValueError(f"Postal code {code!r} not found")
-        </code></pre>
-        <div>
-          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
-            <h4>Auto-generated schema</h4>
-            <p>FastMCP reads the type hints to build the
-               JSON Schema sent to the model — no manual
-               schema writing needed.</p>
-          </div>
-          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
-            <h4>Docstring = description</h4>
-            <p>The docstring is surfaced to the model so it
-               knows <em>when</em> and <em>how</em> to call
-               the tool.</p>
-          </div>
-          <div class="card" style="font-size:0.82em;">
-            <h4>Errors surface safely</h4>
-            <p>Raise <span class="mono">ValueError</span> or
-               <span class="mono">TypeError</span> — FastMCP
-               wraps them in a structured MCP error result
-               the model can reason about.</p>
           </div>
         </div>
       </div>
@@ -545,7 +481,7 @@ def lookup_postal_code(code: str) -> dict:
           <h3>What the model actually receives</h3>
           <pre style="margin-top:0.2em;"><code class="language-json sm-code" data-trim>
 {
-  "name": "lookup_postal_code",
+  "name": "lookup_norwegian_postal_code",
   "description": "Look up a Norwegian postal
     code. Returns district name and
     municipality. Use for 4-digit NO codes
@@ -671,6 +607,92 @@ def search_employee_directory(
         </div>
       </div>
     </section>
+
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         8 · TOOLS
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Primitive 1 — Tools</h2>
+      <div class="col-6040">
+        <pre><code class="language-python" data-trim>
+from typing import Annotated, Literal
+from fastmcp import FastMCP
+from pydantic import Field
+
+mcp = FastMCP("DemoServer")
+
+
+@mcp.tool
+def calculate(
+  operation: Literal["add", "subtract", "multiply", "divide"],
+  a: Annotated[float, Field(description="Left operand.")],
+  b: Annotated[float, Field(description="Right operand.")],
+) -> float:
+    """Perform one arithmetic operation on two real numbers.
+
+    Args:
+        operation: One of add, subtract, multiply, or divide.
+        a: Left operand; use ordinary decimal units.
+        b: Right operand; must be non-zero for division.
+
+    Returns:
+        The numeric result as a JSON number. Raises a clear error for
+        division by zero; do not retry division with the same denominator.
+    """
+    if operation == "add":      return a + b
+    if operation == "subtract": return a - b
+    if operation == "multiply": return a * b
+    if operation == "divide":
+        if b == 0:
+            raise ValueError("Division by zero")
+        return a / b
+    raise ValueError(f"Unknown operation: {operation!r}")
+
+
+@mcp.tool
+def lookup_norwegian_postal_code(code: Annotated[str, Field(
+    pattern=r"^[0-9]{4}$",
+    description="4-digit Norwegian postal code, e.g. '5003'.",
+)]) -> dict[str, str]:
+    """Look up one Norwegian postal code in the bundled reference CSV.
+
+    Use for Norwegian 4-digit postal codes only, not foreign ZIP codes.
+    Returns the matching CSV row, including postal number, place, and
+    municipality. Raises an error when the code is valid but not found.
+    """
+    import csv, pathlib
+    path = pathlib.Path("reference_data/Postnummer_med_koordinater_utf8.csv")
+    with path.open(encoding="utf-8") as f:
+      for row in csv.DictReader(f, delimiter=","):
+            if row.get("Postnummer") == code:
+                return row
+    raise ValueError(f"Postal code {code!r} not found")
+        </code></pre>
+        <div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Auto-generated schema</h4>
+            <p>FastMCP reads the type hints to build the
+               JSON Schema sent to the model — no manual
+               schema writing needed.</p>
+          </div>
+          <div class="card" style="font-size:0.82em; margin-bottom:0.48em;">
+            <h4>Docstring = description</h4>
+            <p>The docstring is surfaced to the model so it
+               knows <em>when</em> and <em>how</em> to call
+               the tool.</p>
+          </div>
+          <div class="card" style="font-size:0.82em;">
+            <h4>Errors surface safely</h4>
+            <p>Raise <span class="mono">ValueError</span> or
+               <span class="mono">TypeError</span> — FastMCP
+               wraps them in a structured MCP error result
+               the model can reason about.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
 
     <!-- ─────────────────────────────────────────────────────────────────────
          9 · RESOURCES: STATIC
@@ -989,32 +1011,32 @@ mcp = FastMCP("DemoServer")
 
 
 @mcp.tool
-def add(a: int, b: int) -> int:
-    """Add two integers."""
+def add_integers(a: int, b: int) -> int:
+  """Add two whole numbers and return their sum as a JSON integer."""
     return a + b
 
 
 @mcp.tool
-def greet(name: str) -> str:
-    """Return a greeting for the given name."""
+def greet_person(name: str) -> str:
+  """Return a greeting for a person's name; does not send a message."""
     return f"Hello, {name}!"
 
 
 @mcp.resource("data://config")
 def get_config() -> dict:
-    """Application configuration."""
+  """Read-only demo configuration; returns version and debug settings."""
     return {"version": "1.0", "debug": False}
 
 
 @mcp.resource("users://{user_id}/profile")
-def get_user(user_id: str) -> dict:
-    """Stub user profile lookup."""
+def get_user_profile(user_id: str) -> dict[str, str]:
+  """Read a demo user profile by ID; returns id and display name."""
     return {"id": user_id, "name": f"User {user_id}"}
 
 
 @mcp.prompt
 def summarise(text: str) -> str:
-    """Summarise text concisely."""
+  """Create a one-paragraph summary of the supplied text."""
     return f"Summarise in one paragraph:\n\n{text}"
 
 

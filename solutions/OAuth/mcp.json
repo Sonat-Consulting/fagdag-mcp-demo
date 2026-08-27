@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "oauth": {
+      "type": "http",
+      "url": "http://localhost:8037/mcp",
+      "headers": {
+        "Authorization": "Bearer <paste token from `uv run python test_client.py --print-token`>"
+      }
+    }
+  }
+}

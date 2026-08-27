@@ -159,17 +159,17 @@ This runs six checks and prints PASS/FAIL for each:
    ```bash
    uv run python test_client.py --print-token
    ```
-2. Start Inspector:
+2. Open `mcp.json` in this folder and replace the placeholder value with
+   `Bearer <paste token here>` in the `Authorization` header.
+3. Start Inspector with that config:
    ```bash
-   npx @modelcontextprotocol/inspector http://localhost:8037/mcp
+   npx @modelcontextprotocol/inspector --config mcp.json
    ```
-3. In the **Headers** section, add:
-   ```
-   Authorization: Bearer <paste token here>
-   ```
-4. Click **Connect** and call the `whoami` or `echo` tools.
+4. Click **Connect** on the `oauth` server and call the `whoami` or `echo` tools.
 
-> Tokens expire after ~1 hour. Re-run `--print-token` to get a fresh one.
+> Tokens expire after ~1 hour. Re-run `--print-token` and update `mcp.json` to
+> get a fresh one. Since it holds a live token while in use, avoid committing
+> it with a real value filled in.
 
 #### Let Inspector acquire its own token
 
@@ -209,7 +209,22 @@ Scope:         api://<api-client-id>/MCP.Access
 > use the paste-a-token flow above until the server is changed to use FastMCP's
 > OAuth support or equivalent discovery endpoints are added.
 
-### Option C — curl
+### Option C — MCP Inspector with `--header` (ad-hoc)
+
+Inspector v2 removed the inline Headers field from the connect screen; adding a
+header there now requires a writable catalog (see Option B). For a quick,
+one-off connection you can instead pass the header at launch:
+
+```bash
+TOKEN=$(uv run python test_client.py --print-token)
+npx @modelcontextprotocol/inspector http://localhost:8037/mcp \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+Click **Connect** and call the `whoami` or `echo` tools. Re-run with a fresh
+`$TOKEN` once it expires (~1 hour).
+
+### Option D — curl
 
 ```bash
 # Get a token

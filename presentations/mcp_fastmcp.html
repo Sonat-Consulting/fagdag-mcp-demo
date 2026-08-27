@@ -89,6 +89,23 @@
       width: 100%;
     }
     .two-col > * { min-width: 0; }
+    .description-layout {
+      grid-template-columns: 0.88fr 1.12fr;
+      gap: 0.8em;
+      font-size: 0.8em;
+    }
+    .description-layout pre code { max-height: 330px; }
+    .description-guidance {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45em;
+    }
+    .description-guidance .card,
+    .description-guidance .info-box {
+      font-size: 0.9em;
+      margin: 0;
+      padding: 0.45em 0.65em;
+    }
     .col-6040 {
       display: grid;
       grid-template-columns: 6fr 4fr;
@@ -200,6 +217,8 @@
         <li>The three primitives: Tools, Resources, Prompts</li>
         <li>FastMCP — Python-first MCP framework</li>
         <li>Tools — with code examples</li>
+        <li>Descriptions matter — the tool <em>is</em> the prompt</li>
+        <li>Before &amp; after — rewriting a tool for the model</li>
         <li>Resources in depth — static, templates, files &amp; blobs</li>
         <li>Prompts — reusable message templates</li>
         <li>Wiring up a complete server</li>
@@ -502,6 +521,153 @@ def lookup_postal_code(code: str) -> dict:
                wraps them in a structured MCP error result
                the model can reason about.</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         8b · DESCRIPTIONS MATTER
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Descriptions Matter</h2>
+      <h3 style="margin-top:0.1em; color:#aaa; font-weight:400; font-size:0.85em;">
+        The tool definition <em>is</em> the prompt the model reads
+      </h3>
+
+      <div class="highlight-box" style="margin-top:0.35em;">
+        The model sees the name, description, and parameter schema — not your
+        implementation. That text must explain <em>whether</em>, <em>when</em>,
+        and <em>how</em> to call the tool.
+      </div>
+
+      <div class="two-col description-layout" style="margin-top:0.4em;">
+        <div>
+          <h3>What the model actually receives</h3>
+          <pre style="margin-top:0.2em;"><code class="language-json sm-code" data-trim>
+{
+  "name": "lookup_postal_code",
+  "description": "Look up a Norwegian postal
+    code. Returns district name and
+    municipality. Use for 4-digit NO codes
+    only — not for foreign ZIP codes.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "pattern": "^[0-9]{4}$",
+        "description": "4-digit Norwegian
+          postal code, e.g. '5003'."
+      }
+    },
+    "required": ["code"]
+  }
+}
+          </code></pre>
+          <p class="sm" style="margin-top:0.2em;">
+            Name + description + schema — that is the entire contract.
+          </p>
+        </div>
+        <div>
+          <h3>Why it changes the result</h3>
+          <div class="description-guidance">
+            <div class="card">
+              <h4>Selection</h4>
+              <p>Vague text &#x2192; wrong tool, or none.</p>
+            </div>
+            <div class="card">
+              <h4>Arguments</h4>
+              <p>State legal values, units, and an example.</p>
+            </div>
+            <div class="card">
+              <h4>Boundaries</h4>
+              <p>Say what it is <span class="tag-no">not</span> for.</p>
+            </div>
+            <div class="info-box">
+              Be precise, not verbose: descriptions are sent every turn.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────────
+         8c · BEFORE / AFTER
+         ───────────────────────────────────────────────────────────────────── -->
+    <section>
+      <h2>Before &amp; After</h2>
+      <div class="two-col">
+        <div>
+          <h3 style="color:var(--red);">&#x2717; Before — the model has to guess</h3>
+          <pre><code class="language-python sm-code" data-trim>
+@mcp.tool
+def search(q: str, n: int = 10) -> list:
+    """Search."""
+    ...
+
+@mcp.tool
+def get_data(id: str, fmt: str) -> dict:
+    """Get data."""
+    ...
+          </code></pre>
+          <ul style="font-size:0.8em; margin-top:0.3em;">
+            <li>What is searched? Which index?</li>
+            <li><span class="mono">n</span> — items? pages? characters?</li>
+            <li><span class="mono">fmt</span> — legal values unknown</li>
+            <li>Both tools look plausible for any request</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="color:var(--green);">&#x2713; After — self-describing</h3>
+          <pre><code class="language-python sm-code" data-trim>
+from typing import Annotated, Literal
+from pydantic import Field
+
+@mcp.tool(
+    annotations={"readOnlyHint": True},
+)
+def search_employee_directory(
+    query: Annotated[str, Field(
+        description="Free-text name or email "
+        "fragment, e.g. 'yngve' or '@sonat.no'.",
+    )],
+    max_results: Annotated[int, Field(
+        ge=1, le=50,
+        description="Max rows to return (1-50).",
+    )] = 10,
+) -> list[dict]:
+    """Search the internal employee directory
+    by name or email.
+
+    Use this to resolve a person's team, title
+    or manager. Do NOT use it for customers or
+    external contacts — see search_crm.
+
+    Returns a list of objects with keys:
+    name, email, team, title. Empty list means
+    no match — do not retry with the same query.
+    """
+    ...
+          </code></pre>
+        </div>
+      </div>
+
+      <div class="card-grid-3" style="margin-top:0.5em; font-size:0.78em;">
+        <div class="card">
+          <h4>Name it like an API</h4>
+          <p><span class="mono">verb_noun</span>, specific and unambiguous.
+             The name alone should narrow the choice.</p>
+        </div>
+        <div class="card">
+          <h4>Document the return shape</h4>
+          <p>State the keys and what an empty or missing result means — that is
+             what the model reasons over next.</p>
+        </div>
+        <div class="card">
+          <h4>Errors are instructions</h4>
+          <p><span class="mono">raise ValueError("code must be 4 digits, got
+             '5003x'")</span> teaches a retry. <span class="mono">"invalid
+             input"</span> teaches nothing.</p>
         </div>
       </div>
     </section>

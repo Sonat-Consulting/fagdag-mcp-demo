@@ -17,15 +17,29 @@ mcp = FastMCP("PostalCodes")
 
 @mcp.tool
 async def query_postnumbers(
-    postnummer: Annotated[int | None, Field(description="Exact postal code number")] = None,
-    poststed: Annotated[str | None, Field(description="Postal district name (partial match)")] = None,
-    kommune: Annotated[str | None, Field(description="Municipality name (partial match)")] = None,
+    postnummer: Annotated[
+        int | None,
+        Field(description="Exact 4-digit Norwegian postal code, e.g. 5003", ge=1000, le=9999),
+    ] = None,
+    poststed: Annotated[
+        str | None,
+        Field(description="Norwegian postal town substring, e.g. 'Oslo' (case-insensitive)", min_length=1),
+    ] = None,
+    kommune: Annotated[
+        str | None,
+        Field(description="Norwegian municipality substring, e.g. 'Bergen' (case-insensitive)", min_length=1),
+    ] = None,
     ctx: Context = None,
 ) -> list[dict]:
     """Query Norwegian postal codes from the database.
 
-    At least one filter must be provided. String filters are case-insensitive.
-    Returns matching rows from the postnumbers table.
+    Search the Norwegian postal-code table using one or more AND-combined filters.
+    Use this for Norwegian postal data, not foreign ZIP codes or address lookup.
+    At least one filter must be provided. String filters are case-insensitive
+    substring matches.
+
+    Returns a list of rows with postnummer, poststed, kommune, fylke, latitude,
+    and longitude. An empty list means no row matched; do not retry unchanged.
     """
     if postnummer is None and poststed is None and kommune is None:
         raise ValueError("At least one of postnummer, poststed, or kommune must be provided.")

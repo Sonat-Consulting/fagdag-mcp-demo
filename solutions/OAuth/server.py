@@ -45,9 +45,11 @@ mcp = FastMCP("SecureMCP")
 
 @mcp.tool
 async def whoami(ctx: Context) -> dict:
-    """Return a confirmation that the caller has been authenticated.
+    """Return the authenticated caller check result.
 
-    The server validated the Azure AD Bearer token before this tool ran.
+    Use to verify that the MCP request passed Azure AD Bearer-token validation.
+    Returns authenticated=true, the provider, and the SecureMCP server name;
+    it does not return personal identity claims.
     """
     await ctx.info("whoami called by authenticated caller")
     return {
@@ -60,10 +62,13 @@ async def whoami(ctx: Context) -> dict:
 
 @mcp.tool
 async def echo(message: str, ctx: Context) -> str:
-    """Echo back the provided message. Demonstrates a protected MCP tool.
+    """Echo text through the authenticated MCP server without side effects.
+
+    Use for testing that an authenticated tool call reaches SecureMCP. This
+    does not send, store, or transform the message.
 
     Args:
-        message: The string to echo back.
+        message: Text to return, e.g. 'hello MCP'.
     """
     await ctx.info(f"echo called: {message!r}")
     return f"[Authenticated echo] {message}"

@@ -1,7 +1,7 @@
 """FastMCP server exposing consultant data from the mcpdemo database."""
 
 import os
-from typing import Annotated
+from typing import Annotated, Literal
 
 import psycopg
 import uvicorn
@@ -31,23 +31,29 @@ async def execute_query(cursor, query: str, params: list | None = None) -> None:
 async def find_consultants(
     technology: Annotated[
         str | None,
-        Field(description="Technology/skill the consultant must know, e.g. 'Python', 'React', 'Kubernetes'"),
+        Field(description="Technology substring, e.g. 'Python', 'React', or 'Kubernetes'", min_length=1),
     ] = None,
     min_years_experience: Annotated[
         int | None,
-        Field(description="Minimum years of professional experience", ge=0),
+        Field(description="Minimum years of professional experience, e.g. 5", ge=0, le=80),
     ] = None,
-    fylke: Annotated[str | None, Field(description="County name (partial match)")] = None,
-    kommune: Annotated[str | None, Field(description="Municipality name (partial match)")] = None,
-    poststed: Annotated[str | None, Field(description="Postal district / city name (partial match)")] = None,
-    limit: Annotated[int, Field(description="Maximum number of consultants to return", ge=1, le=1000)] = 500,
+    fylke: Annotated[str | None, Field(description="Norwegian county substring, e.g. 'Oslo'", min_length=1)] = None,
+    kommune: Annotated[str | None, Field(description="Norwegian municipality substring, e.g. 'Bergen'", min_length=1)] = None,
+    poststed: Annotated[str | None, Field(description="Postal town substring, e.g. 'Trondheim'", min_length=1)] = None,
+    limit: Annotated[int, Field(description="Maximum consultants to return (1-100), e.g. 20", ge=1, le=100)] = 50,
     ctx: Context = None,
 ) -> list[dict]:
     """Find consultants and their map coordinates.
 
-    All filters are optional and combined with AND. String filters are
-    case-insensitive substring matches. Every returned consultant includes
-    latitude/longitude of their postal area so they can be plotted on a map.
+    Find consultants in the internal consultant database. Use for staffing and
+    map-based consultant discovery, not customer or project lookup.
+    All supplied filters are combined with AND. String filters are
+    case-insensitive substring matches.
+
+    Returns a list of consultant objects containing name, email, technologies,
+    years_experience, location fields, and latitude/longitude. An empty list
+    means no consultant matched; do not retry unchanged. Results are ordered by
+    experience and capped by limit.
     """
     conditions: list[str] = []
     params: list = []
@@ -117,12 +123,17 @@ async def find_consultants(
 
 @mcp.tool
 async def list_technology_experience(
-    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
-    technology: Annotated[str | None, Field(description="Technology name (partial match)")] = None,
-    limit: Annotated[int, Field(description="Maximum rows to return", ge=1, le=1000)] = 500,
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID, e.g. 42", ge=1)] = None,
+    technology: Annotated[str | None, Field(description="Technology substring, e.g. 'Python'", min_length=1)] = None,
+    limit: Annotated[int, Field(description="Maximum rows to return (1-1000)", ge=1, le=1000)] = 500,
     ctx: Context = None,
 ) -> list[dict]:
-    """List assignment-derived years of experience for each consultant and technology."""
+    """List assignment-derived technology experience.
+
+    Filter by consultant ID, technology substring, or both. Returns rows with
+    person_id, consultant name, technology, and years_experience. An empty list
+    means no match; results are ordered by experience and capped by limit.
+    """
     conditions: list[str] = []
     params: list = []
 
@@ -154,12 +165,17 @@ async def list_technology_experience(
 
 @mcp.tool
 async def list_current_assignments(
-    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
-    is_assigned: Annotated[bool | None, Field(description="Filter by current assignment status")] = None,
-    limit: Annotated[int, Field(description="Maximum consultants to return", ge=1, le=1000)] = 500,
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID, e.g. 42", ge=1)] = None,
+    is_assigned: Annotated[bool | None, Field(description="True for currently assigned, false for available")] = None,
+    limit: Annotated[int, Field(description="Maximum rows to return (1-1000)", ge=1, le=1000)] = 500,
     ctx: Context = None,
 ) -> list[dict]:
-    """List consultants with their current assignment, availability, and remaining days."""
+    """List current assignment and availability data for consultants.
+
+    Use is_assigned=true to find assigned consultants or false to find
+    available consultants. Returns consultant, client, dates, remaining_days,
+    and is_assigned. An empty list means no match.
+    """
     conditions: list[str] = []
     params: list = []
 
@@ -192,16 +208,21 @@ async def list_current_assignments(
 
 @mcp.tool
 async def list_consultant_assignments(
-    consultant_id: Annotated[int | None, Field(description="Consultant person ID")] = None,
-    client: Annotated[str | None, Field(description="Client name (partial match)")] = None,
+    consultant_id: Annotated[int | None, Field(description="Consultant person ID, e.g. 42", ge=1)] = None,
+    client: Annotated[str | None, Field(description="Client name substring, e.g. 'Acme'", min_length=1)] = None,
     assignment_status: Annotated[
-        str | None,
-        Field(description="Assignment timing: 'current', 'past', or 'future'"),
+        Literal["current", "past", "future"] | None,
+        Field(description="Assignment timing: current, past, or future"),
     ] = None,
     limit: Annotated[int, Field(description="Maximum assignments to return", ge=1, le=1000)] = 500,
     ctx: Context = None,
 ) -> list[dict]:
-    """List consultant assignment history with client and project details."""
+    """List consultant assignment history with client and project details.
+
+    Filter by consultant ID, client substring, and assignment timing. Returns
+    assignment ID, consultant and client details, role, dates, description, and
+    technologies. An empty list means no match; results are newest first.
+    """
     conditions: list[str] = []
     params: list = []
 
@@ -258,7 +279,12 @@ async def list_consultant_assignments(
 
 @mcp.tool
 async def list_technologies(ctx: Context = None) -> list[dict]:
-    """List every technology present in the consultant database with a headcount."""
+    """List technologies used in consultant assignments.
+
+    Returns rows with tech and consultant_count, ordered by headcount.
+    Use this to discover supported technology filters before searching for
+    consultants. An empty list means the database has no assignment data.
+    """
     query = """
         SELECT t.name AS tech, COUNT(DISTINCT a.developer_id) AS consultant_count
         FROM technology t
@@ -278,7 +304,12 @@ async def list_technologies(ctx: Context = None) -> list[dict]:
 
 @mcp.tool
 async def consultant_stats(ctx: Context = None) -> dict:
-    """Summarise how many consultants exist and how they are distributed per county."""
+    """Summarise consultant totals and distribution by Norwegian county.
+
+    Returns total_consultants and per_fylke, where each per_fylke row contains
+    fylke and consultant_count. Use this for aggregate reporting, not for
+    finding individual consultants or assignments.
+    """
     if ctx:
         await ctx.info("consultant_stats called")
 
@@ -304,7 +335,7 @@ async def consultant_stats(ctx: Context = None) -> dict:
 
 @mcp.resource("info://consultant-map")
 async def server_info() -> str:
-    """Describe what this MCP server offers."""
+    """Read-only catalog of consultant-map tools and their PostgreSQL source."""
     return (
         "ConsultantMap MCP server. Tools: find_consultants (filter by technology, "
         "min_years_experience, fylke, kommune, poststed), list_technologies, "

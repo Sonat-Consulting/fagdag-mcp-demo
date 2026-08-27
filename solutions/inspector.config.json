@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "postal-codes": {
+      "type": "http",
+      "url": "http://localhost:8036/mcp"
+    },
+    "oauth": {
+      "type": "http",
+      "url": "http://localhost:8037/mcp"
+    },
+    "consultant-map": {
+      "type": "http",
+      "url": "http://localhost:8038/mcp"
+    }
+  }
+}
